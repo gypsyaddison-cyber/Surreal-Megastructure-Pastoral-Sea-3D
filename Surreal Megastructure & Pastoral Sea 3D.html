@@ -1,0 +1,2305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Horizon Canopy — 10x Pastoral Island &amp; Brutalist Sky-Grid</title>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; }
+        html, body {
+            margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden;
+            background: #141210; color: #f5f5f4;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, Helvetica, Arial, sans-serif;
+            user-select: none; -webkit-user-select: none; -webkit-font-smoothing: antialiased;
+        }
+        .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
+        #canvas-container { position: fixed; inset: 0; width: 100vw; height: 100vh; z-index: 0; }
+        canvas { display: block; width: 100%; height: 100%; outline: none; }
+
+        #loader {
+            position: fixed; inset: 0; z-index: 50; display: flex; flex-direction: column;
+            align-items: center; justify-content: center; padding: 1.5rem; text-align: center;
+            background: rgba(12, 10, 9, 0.96); backdrop-filter: blur(12px);
+            transition: opacity 0.35s ease;
+        }
+        #loader.hidden { opacity: 0; pointer-events: none; }
+        .spinner {
+            width: 42px; height: 42px; border: 2.5px solid rgba(251, 191, 36, 0.25);
+            border-top-color: #fbbf24; border-radius: 50%; animation: spin 0.85s linear infinite; margin-bottom: 14px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .loader-kicker { font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: #fbbf24; margin-bottom: 4px; }
+        .loader-title { font-size: 17px; font-weight: 600; color: #fff; }
+        #loader-status { font-size: 12px; color: #a8a29e; margin-top: 8px; max-width: 460px; line-height: 1.45; }
+
+        .glass {
+            background: rgba(13, 11, 10, 0.78); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(253, 230, 138, 0.16); box-shadow: 0 20px 45px rgba(0, 0, 0, 0.55);
+        }
+
+        header.top-bar {
+            position: fixed; top: 14px; left: 14px; right: 14px; z-index: 20;
+            display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between;
+            gap: 10px; pointer-events: none;
+        }
+        .brand-card { pointer-events: auto; border-radius: 14px; padding: 10px 14px; max-width: 370px; }
+        .brand-badge { display: flex; align-items: center; gap: 8px; font-size: 10px; text-transform: uppercase; letter-spacing: 0.12em; color: #fcd34d; }
+        .brand-dot { width: 8px; height: 8px; border-radius: 50%; background: #fbbf24; box-shadow: 0 0 10px #fbbf24; }
+        .brand-title { margin: 4px 0 0; font-size: 15px; font-weight: 600; color: #fff; }
+        .brand-sub { margin: 2px 0 0; font-size: 11.5px; color: #a8a29e; }
+
+        .nav-bar { pointer-events: auto; display: flex; align-items: center; gap: 5px; border-radius: 14px; padding: 5px; }
+        .btn-pill {
+            display: inline-flex; align-items: center; gap: 6px; padding: 7px 11px; border-radius: 10px;
+            border: 1px solid transparent; background: transparent; color: #d6d3d1;
+            font-size: 12px; font-weight: 500; cursor: pointer; transition: all 0.16s ease;
+        }
+        .btn-pill:hover { color: #fff; background: rgba(255, 255, 255, 0.1); }
+        .btn-pill.active { background: #f59e0b; color: #0c0a09; font-weight: 600; box-shadow: 0 4px 14px rgba(245, 158, 11, 0.35); }
+        .nav-div { width: 1px; height: 18px; background: rgba(255, 255, 255, 0.15); margin: 0 2px; }
+
+        #control-panel {
+            position: fixed; top: 82px; right: 14px; z-index: 20; width: 292px; max-width: calc(100vw - 28px);
+            max-height: calc(100vh - 98px); overflow-y: auto; border-radius: 16px; padding: 14px;
+            transition: transform 0.25s ease, opacity 0.25s ease;
+        }
+        #control-panel.collapsed { transform: translateX(120%); opacity: 0; pointer-events: none; }
+        .sec-block { margin-bottom: 12px; }
+        .sec-div { padding-top: 10px; border-top: 1px solid rgba(255, 255, 255, 0.1); }
+        .sec-hdr { display: flex; align-items: center; justify-content: space-between; margin-bottom: 7px; }
+        .sec-lbl { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.08em; color: #a8a29e; }
+        .accent { color: #fbbf24; }
+
+        .btn-mini {
+            display: inline-flex; align-items: center; gap: 4px; padding: 4px 9px; border-radius: 8px;
+            font-size: 11px; background: rgba(255, 255, 255, 0.07); border: 1px solid rgba(255, 255, 255, 0.14);
+            color: #e7e5e4; cursor: pointer; transition: all 0.15s ease;
+        }
+        .btn-mini:hover { background: rgba(255, 255, 255, 0.14); color: #fff; }
+        .btn-mini.active { color: #fde68a; border-color: rgba(251, 191, 36, 0.55); background: rgba(245, 158, 11, 0.2); }
+
+        .preset-grid { display: grid; grid-template-columns: 1fr; gap: 5px; }
+        .preset-btn {
+            display: flex; align-items: center; justify-content: space-between; width: 100%;
+            padding: 7px 10px; border-radius: 10px; font-size: 11.5px; font-weight: 500; text-align: left;
+            background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.06);
+            color: #e7e5e4; cursor: pointer; transition: all 0.15s ease;
+        }
+        .preset-btn:hover { background: rgba(255, 255, 255, 0.1); }
+        .preset-btn.active { background: rgba(245, 158, 11, 0.2); border-color: rgba(251, 191, 36, 0.5); color: #fde68a; }
+
+        .slider-row { margin-bottom: 9px; }
+        .slider-meta { display: flex; justify-content: space-between; font-size: 11.5px; margin-bottom: 4px; color: #d6d3d1; }
+        .slider-val { color: #fcd34d; }
+        input[type="range"] {
+            -webkit-appearance: none; appearance: none; width: 100%; background: rgba(255, 255, 255, 0.15);
+            height: 5px; border-radius: 999px; outline: none;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none; appearance: none; width: 14px; height: 14px; border-radius: 50%;
+            background: #f59e0b; border: 2px solid #fef3c7; cursor: pointer; box-shadow: 0 0 8px rgba(245, 158, 11, 0.6);
+        }
+
+        .toggle-row {
+            display: flex; align-items: center; justify-content: space-between; padding: 7px 10px;
+            margin-bottom: 5px; border-radius: 10px; background: rgba(255, 255, 255, 0.05);
+            font-size: 11.5px; color: #e7e5e4; cursor: pointer;
+        }
+        .toggle-row:hover { background: rgba(255, 255, 255, 0.1); }
+        .toggle-row input[type="checkbox"] { accent-color: #f59e0b; width: 15px; height: 15px; cursor: pointer; }
+
+        #lore-card {
+            position: fixed; bottom: 14px; left: 14px; z-index: 20; width: 350px; max-width: calc(100vw - 28px);
+            border-radius: 16px; padding: 14px; border-color: rgba(251, 191, 36, 0.3);
+            transition: transform 0.25s ease, opacity 0.25s ease;
+        }
+        #lore-card.hidden-card { transform: translateY(24px); opacity: 0; pointer-events: none; }
+        .lore-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+        #lore-tag {
+            display: inline-block; font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em;
+            padding: 2px 7px; border-radius: 6px; background: rgba(245, 158, 11, 0.2); color: #fcd34d; margin-bottom: 4px;
+        }
+        #lore-title { margin: 0; font-size: 14.5px; font-weight: 600; color: #fff; }
+        #btn-close-lore {
+            padding: 3px 6px; border-radius: 7px; border: none; background: transparent; color: #a8a29e; font-size: 13px; cursor: pointer;
+        }
+        #btn-close-lore:hover { color: #fff; background: rgba(255, 255, 255, 0.1); }
+        #lore-desc { margin: 7px 0 0; font-size: 11.5px; line-height: 1.48; color: #d6d3d1; }
+        #lore-metrics {
+            display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 10px;
+            padding-top: 9px; border-top: 1px solid rgba(255, 255, 255, 0.1); font-size: 11px;
+        }
+        .metric-lbl { color: #a8a29e; }
+        .metric-val { color: #fcd34d; font-weight: 600; margin-top: 2px; }
+
+        .mode-hud {
+            position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); z-index: 25;
+            display: none; flex-direction: column; align-items: center; gap: 8px; pointer-events: none;
+        }
+        .mode-hud.visible { display: flex; }
+        .hud-chip-row { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; pointer-events: auto; }
+        .hud-banner {
+            pointer-events: auto; display: flex; align-items: center; gap: 9px; padding: 7px 14px;
+            border-radius: 999px; font-size: 11.5px; color: #e7e5e4; border-color: rgba(251, 191, 36, 0.35); white-space: nowrap;
+        }
+        kbd { padding: 2px 5px; border-radius: 4px; background: rgba(255, 255, 255, 0.12); font-size: 10px; }
+
+        #touch-pad-dock {
+            position: fixed; bottom: 14px; left: 14px; z-index: 26; display: none;
+            align-items: flex-end; gap: 8px; padding: 9px; border-radius: 14px; pointer-events: auto;
+        }
+        #touch-pad-dock.visible { display: flex; }
+        .dpad-grid { display: grid; grid-template-columns: repeat(3, 38px); gap: 5px; }
+        .alt-col { display: flex; flex-direction: column; gap: 5px; }
+        .nav-pad {
+            height: 38px; min-width: 42px; padding: 0 9px; border-radius: 10px;
+            background: rgba(24, 20, 18, 0.88); border: 1px solid rgba(255, 255, 255, 0.18);
+            color: #f5f5f4; font-size: 11px; font-weight: 600; display: flex; align-items: center; justify-content: center;
+            cursor: pointer; touch-action: none; box-shadow: 0 6px 14px rgba(0, 0, 0, 0.45);
+        }
+        .nav-pad:active, .nav-pad.pressed { background: #f59e0b; color: #0c0a09; border-color: #fde68a; }
+
+        #markers-layer { position: fixed; inset: 0; pointer-events: none; overflow: hidden; z-index: 10; }
+        .scale-pin {
+            position: absolute; transform: translate(-50%, -50%); pointer-events: auto; cursor: pointer;
+            padding: 4px 10px; border-radius: 999px; background: rgba(12, 10, 9, 0.9);
+            border: 1px solid #fbbf24; color: #fcd34d; font-size: 10.5px; font-weight: 600;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.6); transition: transform 0.2s ease, opacity 0.2s ease; z-index: 15;
+        }
+        .scale-pin:hover { transform: translate(-50%, -50%) scale(1.08); z-index: 25; }
+
+        ::-webkit-scrollbar { width: 4px; height: 4px; }
+        ::-webkit-scrollbar-track { background: rgba(255, 255, 255, 0.04); }
+        ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.22); border-radius: 4px; }
+
+        @media (max-width: 680px) {
+            .brand-sub, .desktop-only { display: none; }
+            #control-panel { top: 72px; width: 268px; }
+        }
+    </style>
+
+    <script>
+        window.__showBootError = function (msg) {
+            var loader = document.getElementById('loader');
+            var status = document.getElementById('loader-status');
+            if (loader) {
+                loader.classList.remove('hidden');
+                loader.style.opacity = '1';
+                loader.style.pointerEvents = 'auto';
+            }
+            if (status) {
+                status.style.color = '#fca5a5';
+                status.textContent = 'Startup Error: ' + msg;
+            }
+        };
+        window.addEventListener('error', function (e) {
+            if (e && e.message) window.__showBootError(e.message);
+        });
+        window.addEventListener('unhandledrejection', function (e) {
+            var reason = e && e.reason ? (e.reason.message || String(e.reason)) : 'Unhandled module rejection';
+            window.__showBootError(reason);
+        });
+    </script>
+
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://esm.sh/three@0.187.0",
+                "three/addons/": "https://esm.sh/three@0.187.0/examples/jsm/"
+            }
+        }
+    </script>
+</head>
+<body>
+    <div id="canvas-container"></div>
+    <div id="markers-layer"></div>
+
+    <div id="loader">
+        <div class="spinner"></div>
+        <div class="loader-kicker mono">World Synthesis Engine • 10x Macro Scale</div>
+        <div class="loader-title">Constructing 5.4km Island, Open Sea &amp; 1.1km Sky Canopy...</div>
+        <div id="loader-status">Initializing WebGL2 renderer, procedural PBR maps &amp; instanced geometry</div>
+    </div>
+
+    <header class="top-bar">
+        <div class="brand-card glass">
+            <div class="brand-badge mono">
+                <span class="brand-dot"></span>
+                <span>Sector 09 • Canopy 1,150m • 48km Sea</span>
+            </div>
+            <h1 class="brand-title">The Inverted Canopy &amp; Golden Sea</h1>
+            <p class="brand-sub">10x brutalist sky-grid, terraced mega-pylons &amp; island valley surrounded by open sea.</p>
+        </div>
+
+        <div class="nav-bar glass">
+            <button id="btn-mode-orbit" class="btn-pill active" title="Orbit Camera (WASD Pan + Drag + Scroll)">&#9737; Orbit</button>
+            <button id="btn-mode-walk" class="btn-pill" title="3rd-Person Field Walk (WASD + Shift + Space + Drag)">&#128694; 3rd-Person Walk</button>
+            <button id="btn-mode-drone" class="btn-pill" title="World Free-Fly (WASD + E/Space + Q/C + Shift + Drag)">&#9992; Free-Fly</button>
+            <div class="nav-div"></div>
+            <button id="btn-toggle-hud" class="btn-pill" title="Toggle Control Panel">
+                <span class="accent">&#9776;</span>
+                <span class="desktop-only">Controls</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- 3rd-Person Walk HUD -->
+    <div id="walk-hud" class="mode-hud">
+        <div class="hud-chip-row">
+            <button id="btn-teleport" class="btn-mini active mono">&#9873; Teleport Landmark</button>
+            <span id="walk-loc-label" class="btn-mini mono" style="cursor:default;">Village Square &amp; Sheep Pasture</span>
+        </div>
+        <div class="hud-banner glass">
+            <span style="color:#fcd34d;font-weight:600;">&#128694; Field Explorer (1.8m)</span>
+            <span class="desktop-only" style="color:#78716c;">|</span>
+            <span class="desktop-only">Move: <kbd class="mono">WASD</kbd> • Sprint: <kbd class="mono">Shift</kbd> • Jump: <kbd class="mono">Space</kbd> • Orbit/Zoom: Drag/Scroll</span>
+            <button id="btn-exit-walk" class="btn-mini active">Exit</button>
+        </div>
+    </div>
+
+    <!-- Free-Fly HUD -->
+    <div id="drone-hud" class="mode-hud">
+        <div class="hud-banner glass">
+            <span style="color:#fcd34d;font-weight:600;">&#9992; World Free-Fly</span>
+            <span id="fly-speed-badge" class="btn-mini active mono" style="cursor:default;">Speed 1.0x</span>
+            <span class="desktop-only" style="color:#78716c;">|</span>
+            <span class="desktop-only">Fly: <kbd class="mono">WASD</kbd> • Climb/Descend: <kbd class="mono">E/Space</kbd> / <kbd class="mono">Q/C</kbd> • Boost: <kbd class="mono">Shift</kbd> • Speed: Scroll</span>
+            <button id="btn-exit-drone" class="btn-mini active">Exit</button>
+        </div>
+    </div>
+
+    <!-- Bottom-Left Touch / Mouse D-Pad -->
+    <div id="touch-pad-dock" class="glass" aria-label="Movement Controls">
+        <div class="dpad-grid">
+            <div></div>
+            <button data-dir="forward" class="nav-pad" aria-label="Forward">&#9650;</button>
+            <div></div>
+            <button data-dir="left" class="nav-pad" aria-label="Left">&#9664;</button>
+            <button data-dir="backward" class="nav-pad" aria-label="Backward">&#9660;</button>
+            <button data-dir="right" class="nav-pad" aria-label="Right">&#9654;</button>
+        </div>
+        <div class="alt-col">
+            <button id="pad-up" data-dir="jump" class="nav-pad mono">JUMP</button>
+            <button id="pad-down" data-dir="sprint" class="nav-pad mono">JOG</button>
+        </div>
+    </div>
+
+    <!-- Right Control Sidebar -->
+    <aside id="control-panel" class="glass">
+        <div class="sec-block">
+            <div class="sec-hdr">
+                <span class="sec-lbl mono"><span class="accent">&#9673;</span> Vista Viewpoints</span>
+                <button id="btn-autorotate" class="btn-mini">&#8635; Auto-Orbit</button>
+            </div>
+            <div class="preset-grid">
+                <button data-preset="overview" class="preset-btn active"><span>01. Valley &amp; Canopy Overview</span><span>&#8599;</span></button>
+                <button data-preset="farmhouse" class="preset-btn"><span>02. Farmhouse &amp; Wheat Lanes</span><span>&#8599;</span></button>
+                <button data-preset="pillar" class="preset-btn"><span>03. Mega-Pylon Base &amp; Terraces</span><span>&#8599;</span></button>
+                <button data-preset="canopy" class="preset-btn"><span>04. High Canopy Truss &amp; Horizon</span><span>&#8599;</span></button>
+                <button data-preset="sea" class="preset-btn"><span>05. Coastal Harbor, Piers &amp; Open Sea</span><span>&#8599;</span></button>
+                <button data-preset="aerial" class="preset-btn"><span>06. High-Altitude 5km Island Panorama</span><span>&#8599;</span></button>
+            </div>
+        </div>
+
+        <div class="sec-block sec-div">
+            <div class="sec-hdr">
+                <span class="sec-lbl mono"><span class="accent">&#9728;</span> Solar Light &amp; Shadows</span>
+            </div>
+            <div class="slider-row">
+                <div class="slider-meta"><span>Sun Elevation</span><span id="val-sun-elev" class="slider-val mono">14°</span></div>
+                <input id="slider-sun-elev" type="range" min="4" max="45" step="0.5" value="14">
+            </div>
+            <div class="slider-row">
+                <div class="slider-meta"><span>Sun Azimuth</span><span id="val-sun-azim" class="slider-val mono">-18°</span></div>
+                <input id="slider-sun-azim" type="range" min="-180" max="180" step="1" value="-18">
+            </div>
+        </div>
+
+        <div class="sec-div">
+            <div class="sec-hdr">
+                <span class="sec-lbl mono"><span class="accent">&#9881;</span> World Layers</span>
+            </div>
+            <label class="toggle-row"><span>3D Scale Beacons</span><input type="checkbox" id="chk-markers" checked></label>
+            <label class="toggle-row"><span>Megastructure Canopy &amp; Pylons</span><input type="checkbox" id="chk-canopy" checked></label>
+            <label class="toggle-row"><span>Surrounding Animated Ocean</span><input type="checkbox" id="chk-ocean" checked></label>
+            <label class="toggle-row" style="margin-bottom:0;"><span>Volumetric Light Shafts</span><input type="checkbox" id="chk-shafts" checked></label>
+        </div>
+    </aside>
+
+    <!-- Bottom-Left Scale Telemetry Card -->
+    <div id="lore-card" class="glass">
+        <div class="lore-top">
+            <div>
+                <span id="lore-tag" class="mono">10x Monumental Scale Contrast</span>
+                <h2 id="lore-title">1.8m Villagers vs. 1,150m Sky Canopy</h2>
+            </div>
+            <button id="btn-close-lore" title="Close">&#10005;</button>
+        </div>
+        <p id="lore-desc">
+            A 5.4km agrarian island plateau surrounded by a 48km animated sea beneath an inverted brutalist sky-grid. Click any numbered beacon or switch to <strong>3rd-Person Walk</strong> or <strong>Free-Fly</strong>.
+        </p>
+        <div id="lore-metrics">
+            <div><div class="metric-lbl">Canopy Deck</div><div class="metric-val mono">1,150 m</div></div>
+            <div><div class="metric-lbl">Island Span</div><div class="metric-val mono">5,400 m</div></div>
+            <div><div class="metric-lbl">Sea Horizon</div><div class="metric-val mono">48 km</div></div>
+        </div>
+    </div>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        function hideLoader() {
+            const loader = document.getElementById('loader');
+            if (loader && !loader.classList.contains('hidden')) {
+                loader.classList.add('hidden');
+                setTimeout(() => { if (loader.parentNode) loader.remove(); }, 400);
+            }
+        }
+
+        try {
+            THREE.ColorManagement.enabled = true;
+
+            // Deterministic fast PRNG
+            let _seed = 4242;
+            function rand() {
+                _seed = (_seed * 16807) % 2147483647;
+                return (_seed - 1) / 2147483646;
+            }
+
+            // ==========================================
+            // 1. PROCEDURAL PBR TEXTURES
+            // ==========================================
+            function createBrutalistTextures() {
+                const size = 256;
+                const c = document.createElement('canvas'); c.width = c.height = size;
+                const ctx = c.getContext('2d');
+                const b = document.createElement('canvas'); b.width = b.height = size;
+                const bCtx = b.getContext('2d');
+                const e = document.createElement('canvas'); e.width = e.height = size;
+                const eCtx = e.getContext('2d');
+
+                ctx.fillStyle = '#978b7b'; ctx.fillRect(0, 0, size, size);
+                bCtx.fillStyle = '#686868'; bCtx.fillRect(0, 0, size, size);
+                eCtx.fillStyle = '#000000'; eCtx.fillRect(0, 0, size, size);
+
+                const step = 32;
+                for (let y = 0; y < size; y += step) {
+                    for (let x = 0; x < size; x += step) {
+                        const v = 132 + Math.floor(rand() * 38);
+                        ctx.fillStyle = `rgb(${v},${Math.floor(v * 0.94)},${Math.floor(v * 0.85)})`;
+                        ctx.fillRect(x + 1, y + 1, step - 2, step - 2);
+                        bCtx.fillStyle = `rgb(${v + 42},${v + 42},${v + 42})`;
+                        bCtx.fillRect(x + 2, y + 2, step - 4, step - 4);
+                        if (rand() < 0.09) {
+                            eCtx.fillStyle = '#ffbb55';
+                            eCtx.fillRect(x + 6, y + step * 0.45, step - 12, 3);
+                        }
+                    }
+                }
+                const map = new THREE.CanvasTexture(c);
+                map.wrapS = map.wrapT = THREE.RepeatWrapping;
+                map.colorSpace = THREE.SRGBColorSpace;
+                const bumpMap = new THREE.CanvasTexture(b);
+                bumpMap.wrapS = bumpMap.wrapT = THREE.RepeatWrapping;
+                const emissiveMap = new THREE.CanvasTexture(e);
+                emissiveMap.wrapS = emissiveMap.wrapT = THREE.RepeatWrapping;
+                emissiveMap.colorSpace = THREE.SRGBColorSpace;
+                return { map, bumpMap, emissiveMap };
+            }
+
+            function createSoilTexture() {
+                const size = 256;
+                const c = document.createElement('canvas'); c.width = c.height = size;
+                const ctx = c.getContext('2d');
+                ctx.fillStyle = '#5c4934'; ctx.fillRect(0, 0, size, size);
+                for (let y = 0; y < size; y += 6) {
+                    ctx.fillStyle = y % 12 === 0 ? 'rgba(35,24,14,0.32)' : 'rgba(130,105,72,0.18)';
+                    ctx.fillRect(0, y, size, 3);
+                }
+                const tex = new THREE.CanvasTexture(c);
+                tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+                tex.repeat.set(10, 10);
+                tex.colorSpace = THREE.SRGBColorSpace;
+                return tex;
+            }
+
+            // ==========================================
+            // 2. SCENE, RENDERER, CAMERA & SKY DOME
+            // ==========================================
+            const container = document.getElementById('canvas-container');
+            const scene = new THREE.Scene();
+            const fogColor = new THREE.Color('#dfd5c3');
+            scene.fog = new THREE.FogExp2(fogColor, 0.00024);
+
+            const camera = new THREE.PerspectiveCamera(46, window.innerWidth / window.innerHeight, 1.0, 26000);
+            camera.position.set(45, 145, 650);
+
+            const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.outputColorSpace = THREE.SRGBColorSpace;
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            renderer.toneMapping = THREE.ACESFilmicToneMapping;
+            renderer.toneMappingExposure = 1.06;
+            container.appendChild(renderer.domElement);
+
+            const controls = new OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.06;
+            controls.zoomSpeed = 0.32;
+            controls.rotateSpeed = 0.65;
+            controls.panSpeed = 0.75;
+            controls.minDistance = 8;
+            controls.maxDistance = 5600;
+            controls.maxPolarAngle = Math.PI * 0.492;
+            controls.target.set(-15, 160, -420);
+
+            // Prevent Spacebar from re-clicking focused HUD buttons
+            document.addEventListener('click', (e) => {
+                if (e.target && typeof e.target.closest === 'function') {
+                    const btn = e.target.closest('button');
+                    if (btn) btn.blur();
+                }
+            }, true);
+
+            // Golden-Hour Sky Dome
+            const skyMat = new THREE.ShaderMaterial({
+                side: THREE.BackSide,
+                depthWrite: false,
+                uniforms: {
+                    topColor: { value: new THREE.Color('#849eb0') },
+                    midColor: { value: new THREE.Color('#dfd3be') },
+                    horizonColor: { value: new THREE.Color('#f7e5be') },
+                    sunDir: { value: new THREE.Vector3(-0.2, 0.25, -0.95).normalize() }
+                },
+                vertexShader: `
+                    varying vec3 vWorldPos;
+                    void main() {
+                        vec4 wp = modelMatrix * vec4(position, 1.0);
+                        vWorldPos = wp.xyz;
+                        gl_Position = projectionMatrix * viewMatrix * wp;
+                    }
+                `,
+                fragmentShader: `
+                    uniform vec3 topColor;
+                    uniform vec3 midColor;
+                    uniform vec3 horizonColor;
+                    uniform vec3 sunDir;
+                    varying vec3 vWorldPos;
+                    void main() {
+                        vec3 dir = normalize(vWorldPos);
+                        float h = clamp(dir.y, 0.0, 1.0);
+                        vec3 col = mix(horizonColor, midColor, smoothstep(0.0, 0.14, h));
+                        col = mix(col, topColor, smoothstep(0.14, 0.62, h));
+                        float sunGlow = max(dot(dir, normalize(sunDir)), 0.0);
+                        col += vec3(1.0, 0.82, 0.52) * pow(sunGlow, 14.0) * 0.48;
+                        gl_FragColor = vec4(col, 1.0);
+                    }
+                `
+            });
+            scene.add(new THREE.Mesh(new THREE.SphereGeometry(20000, 32, 20), skyMat));
+
+            // ==========================================
+            // 3. LIGHTING & REAL-TIME SOLAR CONTROLS
+            // ==========================================
+            const hemiLight = new THREE.HemisphereLight('#fff2d6', '#5e4b32', 0.86);
+            scene.add(hemiLight);
+
+            const sunLight = new THREE.DirectionalLight('#ffcf87', 2.65);
+            sunLight.castShadow = true;
+            sunLight.shadow.mapSize.set(2048, 2048);
+            sunLight.shadow.camera.near = 100;
+            sunLight.shadow.camera.far = 6800;
+            const shadowSpan = 1750;
+            sunLight.shadow.camera.left = -shadowSpan;
+            sunLight.shadow.camera.right = shadowSpan;
+            sunLight.shadow.camera.top = shadowSpan;
+            sunLight.shadow.camera.bottom = -shadowSpan;
+            sunLight.shadow.bias = -0.0005;
+            sunLight.shadow.normalBias = 0.25;
+            scene.add(sunLight);
+            scene.add(sunLight.target);
+
+            const valleyBounceLight = new THREE.DirectionalLight('#e8b85a', 0.55);
+            valleyBounceLight.position.set(0, -400, 120);
+            scene.add(valleyBounceLight);
+
+            let sunElevDeg = 14;
+            let sunAzimDeg = -18;
+            let oceanUniforms = null;
+
+            function updateSunPosition() {
+                const elevRad = THREE.MathUtils.degToRad(sunElevDeg);
+                const azimRad = THREE.MathUtils.degToRad(sunAzimDeg);
+                const dist = 3000;
+
+                const sx = Math.sin(azimRad) * Math.cos(elevRad) * dist;
+                const sy = Math.sin(elevRad) * dist;
+                const sz = -Math.cos(azimRad) * Math.cos(elevRad) * dist - 200;
+
+                sunLight.position.set(sx, sy, sz);
+                sunLight.target.position.set(0, 0, 100);
+                sunLight.target.updateMatrixWorld();
+
+                skyMat.uniforms.sunDir.value.set(sx, sy, sz + 200).normalize();
+
+                const lowFactor = 1.0 - (sunElevDeg - 4) / 41;
+                sunLight.color.setHSL(0.095 - lowFactor * 0.025, 0.92, 0.68 + (1 - lowFactor) * 0.12);
+                sunLight.intensity = 2.15 + (1 - lowFactor) * 0.85;
+
+                if (oceanUniforms) {
+                    oceanUniforms.uSunDir.value.copy(skyMat.uniforms.sunDir.value);
+                    oceanUniforms.uSunColor.value.copy(sunLight.color);
+                }
+            }
+            updateSunPosition();
+
+            // ==========================================
+            // 4. SHARED MATERIALS
+            // ==========================================
+            const brutalistTex = createBrutalistTextures();
+            const mats = {
+                soil: new THREE.MeshStandardMaterial({ map: createSoilTexture(), roughness: 0.94 }),
+                dirtRoad: new THREE.MeshStandardMaterial({ color: '#7a6248', roughness: 0.95 }),
+                wallWhite: new THREE.MeshStandardMaterial({ color: '#ede7dc', roughness: 0.78 }),
+                barnWood: new THREE.MeshStandardMaterial({ color: '#7c432b', roughness: 0.85 }),
+                terracotta: new THREE.MeshStandardMaterial({ color: '#b85a3a', roughness: 0.72 }),
+                siloMetal: new THREE.MeshStandardMaterial({ color: '#b5bcc2', roughness: 0.38, metalness: 0.72 }),
+                hayGold: new THREE.MeshStandardMaterial({ color: '#dfb04a', roughness: 0.9 }),
+                fenceWood: new THREE.MeshStandardMaterial({ color: '#6b4e35', roughness: 0.9 }),
+                stoneWall: new THREE.MeshStandardMaterial({ color: '#8f887d', roughness: 0.92 }),
+                beachSand: new THREE.MeshStandardMaterial({ color: '#d8c398', roughness: 0.92 }),
+                coastalRock: new THREE.MeshStandardMaterial({ color: '#58544e', roughness: 0.95 }),
+                canalWater: new THREE.MeshStandardMaterial({
+                    color: '#6e9aa6', emissive: '#2c444a', emissiveIntensity: 0.3, roughness: 0.14, metalness: 0.75
+                }),
+                windowGlow: new THREE.MeshStandardMaterial({ color: '#fff2cc', emissive: '#ff9d2e', emissiveIntensity: 1.65 }),
+                cypress: new THREE.MeshStandardMaterial({ color: '#2b4222', roughness: 0.88 }),
+                deciduous: new THREE.MeshStandardMaterial({ color: '#49662d', roughness: 0.84 }),
+                terraceGreen: new THREE.MeshStandardMaterial({ color: '#46692b', roughness: 0.86 }),
+                megaConcrete: new THREE.MeshStandardMaterial({
+                    map: brutalistTex.map, bumpMap: brutalistTex.bumpMap, bumpScale: 0.65,
+                    emissiveMap: brutalistTex.emissiveMap, emissive: new THREE.Color('#ffaa44'), emissiveIntensity: 0.95,
+                    roughness: 0.76, metalness: 0.18
+                }),
+                megaDarkMetal: new THREE.MeshStandardMaterial({
+                    map: brutalistTex.map, bumpMap: brutalistTex.bumpMap, bumpScale: 0.45,
+                    color: '#887f74', roughness: 0.56, metalness: 0.46
+                }),
+                megaGreeble: new THREE.MeshStandardMaterial({ color: '#433e39', roughness: 0.62, metalness: 0.55 })
+            };
+
+            // ==========================================
+            // 5. 5,400x5,400 ISLAND PLATEAU & 48,000x48,000 ANIMATED SEA
+            // ==========================================
+            const valleyGroup = new THREE.Group();
+            scene.add(valleyGroup);
+
+            const islandHalf = 2700; // 5,400 x 5,400 island plateau
+            const seaLevelY = -14;
+
+            const islandDeck = new THREE.Mesh(new THREE.BoxGeometry(islandHalf * 2, 4, islandHalf * 2), mats.soil);
+            islandDeck.position.set(0, -2, 0);
+            islandDeck.receiveShadow = true;
+            valleyGroup.add(islandDeck);
+
+            // Tiered Stone Seawalls, Sandy Beaches & Rocky Breakwater Shelf
+            const wallN = new THREE.Mesh(new THREE.BoxGeometry(islandHalf * 2 + 24, 6, 16), mats.stoneWall);
+            wallN.position.set(0, -2.5, -islandHalf - 4);
+            wallN.receiveShadow = true;
+            const wallS = wallN.clone(); wallS.position.z = islandHalf + 4;
+            const wallW = new THREE.Mesh(new THREE.BoxGeometry(16, 6, islandHalf * 2 + 24), mats.stoneWall);
+            wallW.position.set(-islandHalf - 4, -2.5, 0);
+            wallW.receiveShadow = true;
+            const wallE = wallW.clone(); wallE.position.x = islandHalf + 4;
+            valleyGroup.add(wallN, wallS, wallW, wallE);
+
+            const beachShelf = new THREE.Mesh(new THREE.BoxGeometry(islandHalf * 2 + 260, 7, islandHalf * 2 + 260), mats.beachSand);
+            beachShelf.position.set(0, -10.5, 0);
+            beachShelf.receiveShadow = true;
+            valleyGroup.add(beachShelf);
+
+            const rockyApron = new THREE.Mesh(new THREE.BoxGeometry(islandHalf * 2 + 540, 8, islandHalf * 2 + 540), mats.coastalRock);
+            rockyApron.position.set(0, -16.5, 0);
+            valleyGroup.add(rockyApron);
+
+            // Rolling Coastal Hills on Northern Rim
+            const hillGeo = new THREE.ConeGeometry(540, 92, 16);
+            const hillMat = new THREE.MeshStandardMaterial({ color: '#839173', roughness: 0.95 });
+            [[-1850, -2250, 1.4, 1.0], [-850, -2320, 1.6, 0.85], [560, -2340, 1.8, 0.95], [1780, -2240, 1.5, 1.1]].forEach(([hx, hz, sx, sy]) => {
+                const hill = new THREE.Mesh(hillGeo, hillMat);
+                hill.position.set(hx, 34 * sy, hz);
+                hill.scale.set(sx, sy, 1.1);
+                valleyGroup.add(hill);
+            });
+
+            // Colossal 48,000 x 48,000 Animated GLSL Ocean
+            oceanUniforms = {
+                uTime: { value: 0 },
+                uSunDir: { value: skyMat.uniforms.sunDir.value.clone() },
+                uSunColor: { value: sunLight.color.clone() },
+                uFogColor: { value: fogColor.clone() },
+                uFogDensity: { value: scene.fog.density },
+                uIslandHalf: { value: islandHalf }
+            };
+
+            const oceanGeo = new THREE.PlaneGeometry(48000, 48000, 128, 128);
+            oceanGeo.rotateX(-Math.PI / 2);
+
+            const oceanMat = new THREE.ShaderMaterial({
+                uniforms: oceanUniforms,
+                vertexShader: `
+                    uniform float uTime;
+                    varying vec3 vWorldPos;
+                    varying float vWaveHeight;
+                    void main() {
+                        vec4 wp = modelMatrix * vec4(position, 1.0);
+                        float d1 = sin(wp.x * 0.0085 + wp.z * 0.0062 + uTime * 1.15);
+                        float d2 = cos(wp.x * 0.0052 - wp.z * 0.0094 + uTime * 0.88);
+                        float d3 = sin((wp.x + wp.z) * 0.016 - uTime * 1.65);
+                        float wave = (d1 * 1.35 + d2 * 1.05 + d3 * 0.45);
+                        wp.y += wave;
+                        vWaveHeight = wave;
+                        vWorldPos = wp.xyz;
+                        gl_Position = projectionMatrix * viewMatrix * wp;
+                    }
+                `,
+                fragmentShader: `
+                    uniform float uTime;
+                    uniform vec3 uSunDir;
+                    uniform vec3 uSunColor;
+                    uniform vec3 uFogColor;
+                    uniform float uFogDensity;
+                    uniform float uIslandHalf;
+                    varying vec3 vWorldPos;
+                    varying float vWaveHeight;
+
+                    void main() {
+                        vec2 p = vWorldPos.xz;
+                        float w1 = cos(p.x * 0.022 + p.y * 0.018 + uTime * 1.55);
+                        float w2 = sin(p.x * 0.017 - p.y * 0.026 + uTime * 1.22);
+                        float w3 = cos(p.x * 0.055 + p.y * 0.048 - uTime * 2.35);
+                        float w4 = sin(p.x * 0.11 - p.y * 0.095 + uTime * 3.10);
+
+                        vec3 N = normalize(vec3(
+                            (w1 * 0.085 + w3 * 0.045 + w4 * 0.025),
+                            1.0,
+                            (w2 * 0.085 - w3 * 0.045 + w4 * 0.025)
+                        ));
+                        vec3 V = normalize(cameraPosition - vWorldPos);
+                        vec3 L = normalize(uSunDir);
+
+                        vec2 q = abs(p) - vec2(uIslandHalf + 95.0);
+                        float coastDist = length(max(q, 0.0)) + min(max(q.x, q.y), 0.0);
+
+                        vec3 shoalColor = vec3(0.16, 0.48, 0.52);
+                        vec3 midSeaColor = vec3(0.06, 0.24, 0.36);
+                        vec3 deepSeaColor = vec3(0.03, 0.11, 0.21);
+
+                        float shoalFactor = smoothstep(0.0, 260.0, max(coastDist, 0.0));
+                        float deepFactor = smoothstep(260.0, 1800.0, max(coastDist, 0.0));
+                        vec3 waterBase = mix(shoalColor, midSeaColor, shoalFactor);
+                        waterBase = mix(waterBase, deepSeaColor, deepFactor);
+
+                        float fresnel = pow(1.0 - max(dot(N, V), 0.0), 4.0);
+                        vec3 skyReflect = mix(vec3(0.54, 0.68, 0.78), vec3(0.96, 0.86, 0.68), 0.45);
+                        vec3 col = mix(waterBase, skyReflect, clamp(fresnel * 0.78, 0.0, 0.85));
+
+                        float diff = max(dot(N, L), 0.0) * 0.45 + 0.55;
+                        col *= diff;
+
+                        vec3 H = normalize(L + V);
+                        float specBroad = pow(max(dot(N, H), 0.0), 48.0) * 0.55;
+                        float specGlint = pow(max(dot(N, H), 0.0), 320.0) * 2.4;
+                        col += uSunColor * (specBroad + specGlint);
+
+                        float surfBand = 1.0 - smoothstep(0.0, 95.0, abs(coastDist - 15.0));
+                        float foamWave = sin(coastDist * 0.22 - uTime * 2.6 + w1 * 2.5);
+                        float foamMask = smoothstep(0.35, 0.88, foamWave) * surfBand;
+                        float whitecap = smoothstep(2.15, 2.75, vWaveHeight + w3 * 0.35) * 0.35;
+                        col = mix(col, vec3(0.95, 0.94, 0.90), clamp(foamMask * 0.85 + whitecap, 0.0, 0.9));
+
+                        float camDist = length(cameraPosition - vWorldPos);
+                        float fogFactor = 1.0 - exp(-uFogDensity * uFogDensity * camDist * camDist);
+                        col = mix(col, uFogColor, clamp(fogFactor, 0.0, 1.0));
+
+                        gl_FragColor = vec4(col, 1.0);
+                    }
+                `
+            });
+
+            const oceanMesh = new THREE.Mesh(oceanGeo, oceanMat);
+            oceanMesh.position.y = seaLevelY;
+            scene.add(oceanMesh);
+
+            // Coastal Harbor Jetties, Moored Bobbing Fishing Boats & Cape Lighthouse
+            const coastalGroup = new THREE.Group();
+            valleyGroup.add(coastalGroup);
+            const mooredBoats = [];
+
+            function createHarborPier(x, z, rotY = 0) {
+                const pier = new THREE.Group();
+                pier.position.set(x, 0, z);
+                pier.rotation.y = rotY;
+
+                const ramp = new THREE.Mesh(new THREE.BoxGeometry(10, 12, 34), mats.stoneWall);
+                ramp.position.set(0, -6.2, 12);
+                ramp.rotation.x = 0.28;
+                ramp.castShadow = true;
+                ramp.receiveShadow = true;
+                pier.add(ramp);
+
+                const jettyLen = 88;
+                const deck = new THREE.Mesh(new THREE.BoxGeometry(8.5, 0.65, jettyLen), mats.fenceWood);
+                deck.position.set(0, seaLevelY + 3.2, 26 + jettyLen / 2);
+                deck.castShadow = true;
+                deck.receiveShadow = true;
+                pier.add(deck);
+
+                for (let pz = 28; pz <= 26 + jettyLen; pz += 14) {
+                    [-3.8, 3.8].forEach(px => {
+                        const piling = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.48, 9, 8), mats.barnWood);
+                        piling.position.set(px, seaLevelY + 0.5, pz);
+                        piling.castShadow = true;
+                        pier.add(piling);
+                    });
+                    const lantern = new THREE.Mesh(new THREE.BoxGeometry(0.65, 0.85, 0.65), mats.windowGlow);
+                    lantern.position.set(3.8, seaLevelY + 5.2, pz);
+                    pier.add(lantern);
+                }
+
+                [
+                    { ox: -11, oz: 54, yaw: 0.12, hull: '#8c3b2b' },
+                    { ox: 12, oz: 78, yaw: -0.18, hull: '#2f566e' },
+                    { ox: -13, oz: 98, yaw: 0.08, hull: '#6e5236' }
+                ].forEach((bCfg, bIdx) => {
+                    const boat = new THREE.Group();
+                    boat.position.set(bCfg.ox, seaLevelY + 0.35, bCfg.oz);
+                    boat.rotation.y = bCfg.yaw;
+
+                    const hullMat = new THREE.MeshStandardMaterial({ color: bCfg.hull, roughness: 0.72 });
+                    const hull = new THREE.Mesh(new THREE.BoxGeometry(4.2, 1.8, 13.5), hullMat);
+                    hull.position.y = 0.4;
+                    hull.castShadow = true;
+                    const bow = new THREE.Mesh(new THREE.ConeGeometry(2.95, 4.2, 4), hullMat);
+                    bow.rotation.set(Math.PI / 2, Math.PI / 4, 0);
+                    bow.scale.set(1.0, 1.0, 0.42);
+                    bow.position.set(0, 0.4, 8.8);
+                    const cabin = new THREE.Mesh(new THREE.BoxGeometry(2.6, 1.6, 3.6), mats.wallWhite);
+                    cabin.position.set(0, 1.8, -1.8);
+                    cabin.castShadow = true;
+                    const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.16, 7.5, 8), mats.fenceWood);
+                    mast.position.set(0, 4.4, 2.2);
+
+                    boat.add(hull, bow, cabin, mast);
+                    pier.add(boat);
+                    mooredBoats.push({ mesh: boat, phase: bIdx * 1.7 + x * 0.01 });
+                });
+
+                coastalGroup.add(pier);
+            }
+
+            createHarborPier(120, islandHalf, 0);
+            createHarborPier(-440, islandHalf, 0);
+            createHarborPier(islandHalf, 320, Math.PI / 2);
+
+            // Coastal Cape Lighthouse with Rotating Beacon
+            const capeTower = new THREE.Group();
+            capeTower.position.set(islandHalf - 48, 0, islandHalf - 48);
+            const lhBase = new THREE.Mesh(new THREE.CylinderGeometry(7.5, 9.5, 38, 14), mats.wallWhite);
+            lhBase.position.y = 19;
+            lhBase.castShadow = true;
+            const lhLantern = new THREE.Mesh(new THREE.CylinderGeometry(5.2, 5.2, 6.5, 12), mats.windowGlow);
+            lhLantern.position.y = 41;
+            const lhCap = new THREE.Mesh(new THREE.ConeGeometry(6.8, 6.5, 12), mats.terracotta);
+            lhCap.position.y = 47.5;
+            const lighthouseBeamPivot = new THREE.Group();
+            lighthouseBeamPivot.position.set(0, 41, 0);
+            const beamCone = new THREE.Mesh(
+                new THREE.ConeGeometry(38, 320, 16, 1, true),
+                new THREE.MeshBasicMaterial({
+                    color: '#ffe49e', transparent: true, opacity: 0.12, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide
+                })
+            );
+            beamCone.rotation.x = Math.PI / 2;
+            beamCone.position.z = 160;
+            lighthouseBeamPivot.add(beamCone);
+            capeTower.add(lhBase, lhLantern, lhCap, lighthouseBeamPivot);
+            coastalGroup.add(capeTower);
+
+            // ==========================================
+            // 6. IRRIGATED CANALS, BRIDGES & 1,500+ AGRICULTURAL PLOTS
+            // ==========================================
+            function addIrrigatedCanal(x, z, w, d) {
+                const water = new THREE.Mesh(new THREE.BoxGeometry(w, 0.26, d), mats.canalWater);
+                water.position.set(x, 0.14, z);
+                water.receiveShadow = true;
+                valleyGroup.add(water);
+
+                if (w > d) {
+                    const bankN = new THREE.Mesh(new THREE.BoxGeometry(w, 0.42, 0.8), mats.stoneWall);
+                    bankN.position.set(x, 0.21, z - d / 2 - 0.35);
+                    const bankS = bankN.clone();
+                    bankS.position.z = z + d / 2 + 0.35;
+                    valleyGroup.add(bankN, bankS);
+                } else {
+                    const bankW = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.42, d), mats.stoneWall);
+                    bankW.position.set(x - w / 2 - 0.35, 0.21, z);
+                    const bankE = bankW.clone();
+                    bankE.position.x = x + w / 2 + 0.35;
+                    valleyGroup.add(bankW, bankE);
+                }
+            }
+            addIrrigatedCanal(0, 240, 3800, 5.5);
+            addIrrigatedCanal(0, -380, 3800, 6.5);
+            addIrrigatedCanal(-160, 0, 5.2, 3800);
+            addIrrigatedCanal(290, 0, 5.8, 3800);
+
+            function addCanalBridge(x, z, acrossX = false) {
+                const bridge = new THREE.Group();
+                bridge.position.set(x, 0.48, z);
+                if (acrossX) bridge.rotation.y = Math.PI / 2;
+
+                const deck = new THREE.Mesh(new THREE.BoxGeometry(6.6, 0.38, 12.0), mats.fenceWood);
+                deck.castShadow = true;
+                deck.receiveShadow = true;
+                const railL = new THREE.Mesh(new THREE.BoxGeometry(0.3, 1.15, 12.0), mats.fenceWood);
+                railL.position.set(-3.05, 0.68, 0);
+                const railR = railL.clone();
+                railR.position.x = 3.05;
+                bridge.add(deck, railL, railR);
+                valleyGroup.add(bridge);
+            }
+            addCanalBridge(-25, 240, false);
+            addCanalBridge(85, 240, false);
+            addCanalBridge(-40, -380, false);
+            addCanalBridge(-160, 140, true);
+            addCanalBridge(290, 210, true);
+
+            const plotCols = 42;
+            const plotRows = 44;
+            const cellW = 86;
+            const cellD = 86;
+            const startX = -(plotCols * cellW) / 2;
+            const startZ = -1950;
+
+            [6, 13, 20, 27, 33, 39].forEach(rz => {
+                const road = new THREE.Mesh(new THREE.PlaneGeometry(plotCols * cellW + 420, 7.5), mats.dirtRoad);
+                road.rotation.x = -Math.PI / 2;
+                road.position.set(0, 0.12, startZ + rz * cellD);
+                road.receiveShadow = true;
+                valleyGroup.add(road);
+            });
+            [6, 12, 18, 24, 30, 36].forEach(rx => {
+                const road = new THREE.Mesh(new THREE.PlaneGeometry(7.2, plotRows * cellD + 420), mats.dirtRoad);
+                road.rotation.x = -Math.PI / 2;
+                road.position.set(startX + rx * cellW, 0.12, startZ + (plotRows * cellD) / 2);
+                road.receiveShadow = true;
+                valleyGroup.add(road);
+            });
+
+            // 8 Stepped Mega-Pylons (6 inland + 2 dramatic offshore sea-pylons)
+            const pillarZones = [
+                { x: -340, z: 330, r: 165, offshore: false },
+                { x: 390, z: 240, r: 155, offshore: false },
+                { x: -290, z: -340, r: 175, offshore: false },
+                { x: 430, z: -520, r: 165, offshore: false },
+                { x: -620, z: -840, r: 185, offshore: false },
+                { x: 680, z: -960, r: 175, offshore: false },
+                { x: -3150, z: -420, r: 195, offshore: true },
+                { x: 3180, z: 540, r: 195, offshore: true }
+            ];
+
+            function isNearPillar(x, z, extraMargin = 0) {
+                for (let i = 0; i < pillarZones.length; i++) {
+                    const p = pillarZones[i];
+                    if (Math.hypot(x - p.x, z - p.z) < p.r + extraMargin) return true;
+                }
+                return false;
+            }
+
+            const wheatTransforms = [];
+            const treePlacements = [];
+            const hayBalePlacements = [];
+            const fencePostPlacements = [];
+            const pastureZones = [];
+            const plotTransforms = [];
+            const plotColors = {
+                soil: new THREE.Color('#6b553c'),
+                wheat: new THREE.Color('#d49e35'),
+                wheatBright: new THREE.Color('#e5b443'),
+                green: new THREE.Color('#4d6b32'),
+                orchard: new THREE.Color('#5b7338')
+            };
+
+            for (let r = 0; r < plotRows; r++) {
+                for (let c = 0; c < plotCols; c++) {
+                    const cx = startX + (c + 0.5) * cellW;
+                    const cz = startZ + (r + 0.5) * cellD;
+                    if (isNearPillar(cx, cz, 15)) continue;
+
+                    const roll = rand();
+                    const pw = cellW - 7.5;
+                    const pd = cellD - 7.5;
+                    let plotCol = plotColors.soil;
+                    let isGoldenWheat = false;
+                    let isOrchard = false;
+
+                    if (roll < 0.48) {
+                        plotCol = rand() > 0.4 ? plotColors.wheat : plotColors.wheatBright;
+                        isGoldenWheat = true;
+                    } else if (roll < 0.68) {
+                        plotCol = plotColors.green;
+                        if (Math.abs(cx) < 1150 && cz > -900 && cz < 900) {
+                            pastureZones.push({ x: cx, z: cz, w: pw, d: pd });
+                        }
+                    } else if (roll < 0.78) {
+                        plotCol = plotColors.orchard;
+                        isOrchard = true;
+                    }
+
+                    plotTransforms.push({ x: cx, z: cz, w: pw, d: pd, color: plotCol });
+
+                    if (isGoldenWheat && Math.abs(cx) < 780 && cz > -680 && cz < 900) {
+                        const distFromHero = Math.hypot(cx, cz - 280);
+                        const density = distFromHero < 480 ? 80 : (distFromHero < 950 ? 32 : 12);
+                        for (let i = 0; i < density; i++) {
+                            wheatTransforms.push({
+                                x: cx + (rand() - 0.5) * (pw - 3),
+                                y: 0.35,
+                                z: cz + (rand() - 0.5) * (pd - 3),
+                                sx: 1.4 + rand() * 1.1,
+                                sy: 1.2 + rand() * 0.9,
+                                ry: rand() * Math.PI * 2,
+                                shade: 0.84 + rand() * 0.32
+                            });
+                        }
+                    }
+
+                    if (!isOrchard && rand() < 0.16 && Math.abs(cx) < 1100 && cz > -900) {
+                        const baleCount = 3 + Math.floor(rand() * 5);
+                        for (let b = 0; b < baleCount; b++) {
+                            hayBalePlacements.push({
+                                x: cx + (rand() - 0.5) * (pw * 0.7),
+                                z: cz + (rand() - 0.5) * (pd * 0.7),
+                                rotY: rand() * Math.PI
+                            });
+                        }
+                    }
+
+                    if (isOrchard) {
+                        for (let ox = -pw * 0.36; ox <= pw * 0.36; ox += 14) {
+                            for (let oz = -pd * 0.36; oz <= pd * 0.36; oz += 14) {
+                                treePlacements.push({
+                                    x: cx + ox + (rand() - 0.5) * 1.5,
+                                    z: cz + oz + (rand() - 0.5) * 1.5,
+                                    type: 'deciduous',
+                                    scale: 1.05 + rand() * 0.25
+                                });
+                            }
+                        }
+                    } else if (rand() < 0.55) {
+                        const edgeSide = rand() > 0.5 ? 1 : -1;
+                        const count = 4 + Math.floor(rand() * 5);
+                        const isCypress = rand() > 0.45;
+                        for (let t = 0; t < count; t++) {
+                            const frac = (t / (count - 1 || 1)) - 0.5;
+                            treePlacements.push({
+                                x: cx + frac * (pw - 4) + (rand() - 0.5) * 2,
+                                z: cz + edgeSide * (pd * 0.48) + (rand() - 0.5) * 2,
+                                type: isCypress ? 'cypress' : 'deciduous',
+                                scale: 1.25 + rand() * 0.85
+                            });
+                        }
+                    }
+
+                    if (rand() < 0.2 && Math.abs(cx) < 880 && cz > -450 && cz < 840) {
+                        const fz = cz - pd * 0.49;
+                        for (let fx = cx - pw * 0.45; fx <= cx + pw * 0.45; fx += 6.5) {
+                            fencePostPlacements.push({ x: fx, z: fz });
+                        }
+                    }
+                }
+            }
+
+            const plotInstanced = new THREE.InstancedMesh(
+                new THREE.BoxGeometry(1, 0.35, 1),
+                new THREE.MeshStandardMaterial({ roughness: 0.9 }),
+                plotTransforms.length
+            );
+            plotInstanced.receiveShadow = true;
+            const dummy = new THREE.Object3D();
+            plotTransforms.forEach((pt, idx) => {
+                dummy.position.set(pt.x, 0.175, pt.z);
+                dummy.rotation.set(0, 0, 0);
+                dummy.scale.set(pt.w, 1, pt.d);
+                dummy.updateMatrix();
+                plotInstanced.setMatrixAt(idx, dummy.matrix);
+                plotInstanced.setColorAt(idx, pt.color);
+            });
+            plotInstanced.instanceMatrix.needsUpdate = true;
+            if (plotInstanced.instanceColor) plotInstanced.instanceColor.needsUpdate = true;
+            valleyGroup.add(plotInstanced);
+
+            // Animated Wind-Swaying Wheat InstancedMesh
+            function createWheatClusterGeometry() {
+                const blades = 5;
+                const positions = [], normals = [], colors = [];
+                for (let b = 0; b < blades; b++) {
+                    const ox = (rand() - 0.5) * 1.35;
+                    const oz = (rand() - 0.5) * 1.35;
+                    const h = 1.45 + rand() * 0.65;
+                    const w = 0.22;
+                    const angle = (b / blades) * Math.PI;
+                    const cosA = Math.cos(angle) * w;
+                    const sinA = Math.sin(angle) * w;
+
+                    const p0 = [ox - cosA, 0, oz - sinA];
+                    const p1 = [ox + cosA, 0, oz + sinA];
+                    const p2 = [ox + cosA * 0.25 + 0.12, h, oz + sinA * 0.25];
+                    const p3 = [ox - cosA * 0.25 + 0.12, h, oz - sinA * 0.25];
+
+                    positions.push(...p0, ...p1, ...p2, ...p0, ...p2, ...p3);
+                    for (let k = 0; k < 6; k++) normals.push(0, 1, 0);
+
+                    const rootCol = [0.68, 0.46, 0.12];
+                    const tipCol = [1.0, 0.85, 0.36];
+                    colors.push(...rootCol, ...rootCol, ...tipCol, ...rootCol, ...tipCol, ...tipCol);
+                }
+                const geo = new THREE.BufferGeometry();
+                geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+                geo.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
+                geo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+                return geo;
+            }
+
+            const wheatUniforms = { uTime: { value: 0 }, uWindStrength: { value: 0.65 } };
+            const wheatMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.82, side: THREE.DoubleSide });
+            wheatMat.onBeforeCompile = (shader) => {
+                shader.uniforms.uTime = wheatUniforms.uTime;
+                shader.uniforms.uWindStrength = wheatUniforms.uWindStrength;
+                shader.vertexShader = `uniform float uTime;\nuniform float uWindStrength;\n` + shader.vertexShader;
+                shader.vertexShader = shader.vertexShader.replace(
+                    '#include <begin_vertex>',
+                    `
+                    #include <begin_vertex>
+                    vec4 wp = instanceMatrix * vec4(transformed, 1.0);
+                    float bendFactor = clamp(position.y, 0.0, 2.2);
+                    float wave1 = sin(uTime * 2.0 + wp.x * 0.06 + wp.z * 0.05);
+                    float wave2 = cos(uTime * 1.35 + wp.z * 0.09 - wp.x * 0.04);
+                    transformed.x += (wave1 * 0.55 + wave2 * 0.22) * bendFactor * uWindStrength;
+                    transformed.z += (wave2 * 0.42) * bendFactor * uWindStrength;
+                    `
+                );
+            };
+
+            const wheatInstanced = new THREE.InstancedMesh(createWheatClusterGeometry(), wheatMat, wheatTransforms.length);
+            wheatInstanced.receiveShadow = true;
+            const tmpColor = new THREE.Color();
+            wheatTransforms.forEach((wt, i) => {
+                dummy.position.set(wt.x, wt.y, wt.z);
+                dummy.rotation.set(0, wt.ry, 0);
+                dummy.scale.set(wt.sx * 1.5, wt.sy * 1.25, wt.sx * 1.5);
+                dummy.updateMatrix();
+                wheatInstanced.setMatrixAt(i, dummy.matrix);
+                tmpColor.setRGB(wt.shade, wt.shade * 0.96, wt.shade * 0.88);
+                wheatInstanced.setColorAt(i, tmpColor);
+            });
+            wheatInstanced.instanceMatrix.needsUpdate = true;
+            if (wheatInstanced.instanceColor) wheatInstanced.instanceColor.needsUpdate = true;
+            valleyGroup.add(wheatInstanced);
+
+            // ==========================================
+            // 7. 15 MULTI-BUILDING FARM COMPOUNDS, HAY BALES & TREES
+            // ==========================================
+            function createFarmCompound(x, z, rotY = 0, hasSilos = true) {
+                const compound = new THREE.Group();
+                compound.position.set(x, 0.35, z);
+                compound.rotation.y = rotY;
+
+                const yard = new THREE.Mesh(new THREE.BoxGeometry(22, 0.14, 18), mats.dirtRoad);
+                yard.position.y = 0.07;
+                yard.receiveShadow = true;
+                compound.add(yard);
+
+                const bodyW = 7.4, bodyH = 4.2, bodyD = 5.6;
+                const body = new THREE.Mesh(new THREE.BoxGeometry(bodyW, bodyH, bodyD), mats.wallWhite);
+                body.position.set(-2.2, bodyH / 2, -1.5);
+                body.castShadow = true;
+                body.receiveShadow = true;
+                compound.add(body);
+
+                const roofGeo = new THREE.ConeGeometry(5.5, 2.7, 4);
+                roofGeo.rotateY(Math.PI / 4);
+                const roof = new THREE.Mesh(roofGeo, mats.terracotta);
+                roof.scale.set(1.08, 1.0, 0.86);
+                roof.position.set(-2.2, bodyH + 1.3, -1.5);
+                roof.castShadow = true;
+                compound.add(roof);
+
+                const chimney = new THREE.Mesh(new THREE.BoxGeometry(0.85, 2.4, 0.85), mats.barnWood);
+                chimney.position.set(-4.1, bodyH + 1.8, -2.2);
+                chimney.castShadow = true;
+                compound.add(chimney);
+
+                [[-4.1, 2.2, bodyD / 2 - 1.48], [-0.4, 2.2, bodyD / 2 - 1.48]].forEach(([wx, wy, wz]) => {
+                    const win = new THREE.Mesh(new THREE.PlaneGeometry(1.0, 1.15), mats.windowGlow);
+                    win.position.set(wx, wy, wz);
+                    compound.add(win);
+                });
+
+                const barn = new THREE.Mesh(new THREE.BoxGeometry(6.2, 4.6, 8.2), mats.barnWood);
+                barn.position.set(5.6, 2.3, 1.2);
+                barn.castShadow = true;
+                barn.receiveShadow = true;
+                const barnRoofGeo = new THREE.ConeGeometry(5.8, 2.6, 4);
+                barnRoofGeo.rotateY(Math.PI / 4);
+                const barnRoof = new THREE.Mesh(barnRoofGeo, mats.terracotta);
+                barnRoof.scale.set(0.88, 1.0, 1.15);
+                barnRoof.position.set(5.6, 5.85, 1.2);
+                barnRoof.castShadow = true;
+                compound.add(barn, barnRoof);
+
+                if (hasSilos) {
+                    [-3.6, -1.0].forEach((sz, sIdx) => {
+                        const rad = sIdx === 0 ? 1.25 : 1.05;
+                        const h = sIdx === 0 ? 8.4 : 7.0;
+                        const silo = new THREE.Mesh(new THREE.CylinderGeometry(rad, rad, h, 16), mats.siloMetal);
+                        silo.position.set(9.8, h / 2, sz);
+                        silo.castShadow = true;
+                        const dome = new THREE.Mesh(new THREE.SphereGeometry(rad, 16, 10, 0, Math.PI * 2, 0, Math.PI / 2), mats.siloMetal);
+                        dome.position.set(9.8, h, sz);
+                        compound.add(silo, dome);
+                    });
+                }
+
+                const frontWall = new THREE.Mesh(new THREE.BoxGeometry(22, 0.85, 0.55), mats.stoneWall);
+                frontWall.position.set(0, 0.42, 8.8);
+                frontWall.castShadow = true;
+                compound.add(frontWall);
+
+                for (let t = 0; t < 6; t++) {
+                    const ang = (t / 6) * Math.PI * 2 + 0.3;
+                    treePlacements.push({
+                        x: x + Math.cos(ang) * (13.5 + rand() * 4.5),
+                        z: z + Math.sin(ang) * (13.5 + rand() * 4.5),
+                        type: t % 2 === 0 ? 'cypress' : 'deciduous',
+                        scale: 1.45 + rand() * 0.65
+                    });
+                }
+
+                valleyGroup.add(compound);
+            }
+
+            const farmCompounds = [
+                { x: -38, z: 365, rot: 0.25, silos: true },
+                { x: 95, z: 285, rot: -0.32, silos: true },
+                { x: 42, z: 165, rot: 0.14, silos: false },
+                { x: -125, z: 110, rot: 0.42, silos: true },
+                { x: 145, z: -45, rot: -0.22, silos: true },
+                { x: -75, z: -180, rot: 0.12, silos: false },
+                { x: 85, z: -310, rot: -0.45, silos: true },
+                { x: -185, z: 480, rot: 0.3, silos: true },
+                { x: 245, z: 440, rot: -0.18, silos: true },
+                { x: -460, z: -40, rot: 0.5, silos: true },
+                { x: 520, z: 110, rot: -0.4, silos: true },
+                { x: -110, z: -590, rot: 0.2, silos: true },
+                { x: 210, z: -720, rot: -0.3, silos: false },
+                { x: -540, z: -460, rot: 0.35, silos: true },
+                { x: 640, z: -380, rot: -0.25, silos: true }
+            ];
+            farmCompounds.forEach(fc => createFarmCompound(fc.x, fc.z, fc.rot, fc.silos));
+
+            if (hayBalePlacements.length > 0) {
+                const baleGeo = new THREE.CylinderGeometry(0.95, 0.95, 1.6, 12);
+                baleGeo.rotateZ(Math.PI / 2);
+                baleGeo.translate(0, 0.95, 0);
+                const baleInst = new THREE.InstancedMesh(baleGeo, mats.hayGold, hayBalePlacements.length);
+                baleInst.castShadow = true;
+                hayBalePlacements.forEach((hb, i) => {
+                    dummy.position.set(hb.x, 0.35, hb.z);
+                    dummy.rotation.set(0, hb.rotY, 0);
+                    dummy.scale.setScalar(1.0);
+                    dummy.updateMatrix();
+                    baleInst.setMatrixAt(i, dummy.matrix);
+                });
+                baleInst.instanceMatrix.needsUpdate = true;
+                valleyGroup.add(baleInst);
+            }
+
+            if (fencePostPlacements.length > 0) {
+                const postGeo = new THREE.BoxGeometry(0.32, 1.65, 0.32);
+                postGeo.translate(0, 0.825, 0);
+                const postInst = new THREE.InstancedMesh(postGeo, mats.fenceWood, fencePostPlacements.length);
+                postInst.castShadow = true;
+                fencePostPlacements.forEach((fp, i) => {
+                    dummy.position.set(fp.x, 0.35, fp.z);
+                    dummy.rotation.set(0, 0, 0);
+                    dummy.scale.setScalar(1.0);
+                    dummy.updateMatrix();
+                    postInst.setMatrixAt(i, dummy.matrix);
+                });
+                postInst.instanceMatrix.needsUpdate = true;
+                valleyGroup.add(postInst);
+            }
+
+            const cypressList = treePlacements.filter(t => t.type === 'cypress');
+            const decidList = treePlacements.filter(t => t.type === 'deciduous');
+
+            const cypressGeo = new THREE.ConeGeometry(1.45, 8.2, 7);
+            cypressGeo.translate(0, 4.1, 0);
+            const cypressInst = new THREE.InstancedMesh(cypressGeo, mats.cypress, cypressList.length);
+            cypressInst.castShadow = true;
+            cypressList.forEach((t, i) => {
+                dummy.position.set(t.x, 0.35, t.z);
+                dummy.rotation.set(0, rand() * Math.PI, 0);
+                dummy.scale.setScalar(t.scale);
+                dummy.updateMatrix();
+                cypressInst.setMatrixAt(i, dummy.matrix);
+            });
+            cypressInst.instanceMatrix.needsUpdate = true;
+            valleyGroup.add(cypressInst);
+
+            const decidGeo = new THREE.DodecahedronGeometry(2.8, 1);
+            decidGeo.translate(0, 3.6, 0);
+            const decidInst = new THREE.InstancedMesh(decidGeo, mats.deciduous, decidList.length);
+            decidInst.castShadow = true;
+            decidList.forEach((t, i) => {
+                dummy.position.set(t.x, 0.35, t.z);
+                dummy.rotation.set(0, rand() * Math.PI, 0);
+                dummy.scale.set(t.scale * 1.15, t.scale * 0.95, t.scale * 1.15);
+                dummy.updateMatrix();
+                decidInst.setMatrixAt(i, dummy.matrix);
+            });
+            decidInst.instanceMatrix.needsUpdate = true;
+            valleyGroup.add(decidInst);
+
+            // ==========================================
+            // 8. TINY ARTICULATED HUMANS & GRAZING LIVESTOCK HERDS
+            // ==========================================
+            const lifeGroup = new THREE.Group();
+            valleyGroup.add(lifeGroup);
+
+            const humanMats = {
+                skin: new THREE.MeshStandardMaterial({ color: '#dfa883', roughness: 0.75 }),
+                hat: new THREE.MeshStandardMaterial({ color: '#d8b467', roughness: 0.85 }),
+                pack: new THREE.MeshStandardMaterial({ color: '#69462c', roughness: 0.88 }),
+                trousers: new THREE.MeshStandardMaterial({ color: '#394654', roughness: 0.85 }),
+                tunics: [
+                    new THREE.MeshStandardMaterial({ color: '#b54935', roughness: 0.82 }),
+                    new THREE.MeshStandardMaterial({ color: '#3f6c8a', roughness: 0.82 }),
+                    new THREE.MeshStandardMaterial({ color: '#587844', roughness: 0.82 }),
+                    new THREE.MeshStandardMaterial({ color: '#c48f3b', roughness: 0.82 }),
+                    new THREE.MeshStandardMaterial({ color: '#e6dfd3', roughness: 0.82 })
+                ]
+            };
+
+            function createArticulatedHuman(tunicIndex = 0, withBackpack = false) {
+                const root = new THREE.Group();
+                const tunicMat = humanMats.tunics[tunicIndex % humanMats.tunics.length];
+
+                const torso = new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.62, 0.24), tunicMat);
+                torso.position.y = 1.02;
+                torso.castShadow = true;
+                root.add(torso);
+
+                if (withBackpack) {
+                    const pack = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.46, 0.22), humanMats.pack);
+                    pack.position.set(0, 1.04, -0.2);
+                    pack.castShadow = true;
+                    root.add(pack);
+                }
+
+                const headGroup = new THREE.Group();
+                headGroup.position.y = 1.48;
+                const head = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.24, 0.24), humanMats.skin);
+                head.castShadow = true;
+                const hatBrim = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.36, 0.04, 12), humanMats.hat);
+                hatBrim.position.y = 0.12;
+                const hatCrown = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.2, 0.14, 12), humanMats.hat);
+                hatCrown.position.y = 0.2;
+                headGroup.add(head, hatBrim, hatCrown);
+                root.add(headGroup);
+
+                const armGeo = new THREE.BoxGeometry(0.13, 0.54, 0.13);
+                armGeo.translate(0, -0.22, 0);
+                const leftArm = new THREE.Mesh(armGeo, tunicMat);
+                leftArm.position.set(-0.3, 1.28, 0);
+                leftArm.castShadow = true;
+                const rightArm = new THREE.Mesh(armGeo, tunicMat);
+                rightArm.position.set(0.3, 1.28, 0);
+                rightArm.castShadow = true;
+                root.add(leftArm, rightArm);
+
+                const legGeo = new THREE.BoxGeometry(0.16, 0.72, 0.16);
+                legGeo.translate(0, -0.36, 0);
+                const leftLeg = new THREE.Mesh(legGeo, humanMats.trousers);
+                leftLeg.position.set(-0.12, 0.72, 0);
+                leftLeg.castShadow = true;
+                const rightLeg = new THREE.Mesh(legGeo, humanMats.trousers);
+                rightLeg.position.set(0.12, 0.72, 0);
+                rightLeg.castShadow = true;
+                root.add(leftLeg, rightLeg);
+
+                return { root, torso, headGroup, leftArm, rightArm, leftLeg, rightLeg };
+            }
+
+            const villagers = [];
+            farmCompounds.forEach((fc, fIdx) => {
+                const count = fIdx < 7 ? 6 : 4;
+                for (let v = 0; v < count; v++) {
+                    const rig = createArticulatedHuman(fIdx + v, v % 3 === 0);
+                    const isWalker = v % 2 === 0;
+                    const angle = (v / count) * Math.PI * 2 + fIdx;
+                    const dist = 10 + rand() * 28;
+                    const baseX = fc.x + Math.cos(angle) * dist;
+                    const baseZ = fc.z + Math.sin(angle) * dist;
+                    rig.root.position.set(baseX, 0.35, baseZ);
+                    lifeGroup.add(rig.root);
+
+                    villagers.push({
+                        rig,
+                        isWalker,
+                        cx: baseX,
+                        cz: baseZ,
+                        radius: isWalker ? (8 + rand() * 18) : 0,
+                        speed: isWalker ? (0.14 + rand() * 0.14) : 0,
+                        phase: rand() * Math.PI * 2,
+                        yaw: rand() * Math.PI * 2
+                    });
+                }
+            });
+
+            // Grazing Sheep & Cattle Herds
+            const livestockMats = {
+                sheepWool: new THREE.MeshStandardMaterial({ color: '#f2ede2', roughness: 0.95 }),
+                sheepFace: new THREE.MeshStandardMaterial({ color: '#332d29', roughness: 0.85 }),
+                cattleBrown: new THREE.MeshStandardMaterial({ color: '#7a4427', roughness: 0.85 }),
+                cattleSpot: new THREE.MeshStandardMaterial({ color: '#ded6c8', roughness: 0.85 }),
+                cattleHorn: new THREE.MeshStandardMaterial({ color: '#e6dcc8', roughness: 0.6 })
+            };
+
+            const legMiniGeo = new THREE.BoxGeometry(0.11, 0.42, 0.11);
+            const sheepBodyGeo = new THREE.BoxGeometry(0.68, 0.56, 1.02);
+            const sheepHeadGeo = new THREE.BoxGeometry(0.32, 0.32, 0.42);
+            const cattleBodyGeo = new THREE.BoxGeometry(0.95, 0.88, 1.75);
+            const cattleLegGeo = new THREE.BoxGeometry(0.16, 0.68, 0.16);
+            const cattleHeadGeo = new THREE.BoxGeometry(0.46, 0.48, 0.58);
+
+            function createSheep() {
+                const g = new THREE.Group();
+                const body = new THREE.Mesh(sheepBodyGeo, livestockMats.sheepWool);
+                body.position.y = 0.62;
+                body.castShadow = true;
+                g.add(body);
+                [[-0.22, 0.21, 0.32], [0.22, 0.21, 0.32], [-0.22, 0.21, -0.32], [0.22, 0.21, -0.32]].forEach(([lx, ly, lz]) => {
+                    const leg = new THREE.Mesh(legMiniGeo, livestockMats.sheepFace);
+                    leg.position.set(lx, ly, lz);
+                    g.add(leg);
+                });
+                const neckPivot = new THREE.Group();
+                neckPivot.position.set(0, 0.74, 0.48);
+                const head = new THREE.Mesh(sheepHeadGeo, livestockMats.sheepFace);
+                head.position.set(0, 0.04, 0.18);
+                head.castShadow = true;
+                neckPivot.add(head);
+                g.add(neckPivot);
+                return { root: g, neckPivot };
+            }
+
+            function createCow(spotted = false) {
+                const g = new THREE.Group();
+                const body = new THREE.Mesh(cattleBodyGeo, spotted ? livestockMats.cattleSpot : livestockMats.cattleBrown);
+                body.position.y = 1.05;
+                body.castShadow = true;
+                g.add(body);
+                if (spotted) {
+                    const patch = new THREE.Mesh(new THREE.BoxGeometry(0.98, 0.52, 0.75), livestockMats.cattleBrown);
+                    patch.position.set(0, 1.12, -0.15);
+                    g.add(patch);
+                }
+                [[-0.32, 0.34, 0.58], [0.32, 0.34, 0.58], [-0.32, 0.34, -0.58], [0.32, 0.34, -0.58]].forEach(([lx, ly, lz]) => {
+                    const leg = new THREE.Mesh(cattleLegGeo, livestockMats.cattleBrown);
+                    leg.position.set(lx, ly, lz);
+                    g.add(leg);
+                });
+                const neckPivot = new THREE.Group();
+                neckPivot.position.set(0, 1.18, 0.82);
+                const head = new THREE.Mesh(cattleHeadGeo, livestockMats.cattleBrown);
+                head.position.set(0, 0.05, 0.26);
+                head.castShadow = true;
+                const horns = new THREE.Mesh(new THREE.BoxGeometry(0.76, 0.08, 0.08), livestockMats.cattleHorn);
+                horns.position.set(0, 0.28, 0.18);
+                neckPivot.add(head, horns);
+                g.add(neckPivot);
+                return { root: g, neckPivot };
+            }
+
+            const animals = [];
+            const selectedPastures = [
+                { x: -12, z: 315, w: 72, d: 72 },
+                { x: 68, z: 345, w: 72, d: 72 },
+                { x: -95, z: 185, w: 72, d: 72 },
+                { x: 115, z: 45, w: 72, d: 72 },
+                ...pastureZones.filter((_, i) => i % 4 === 0).slice(0, 14)
+            ];
+
+            selectedPastures.forEach((pz, pIdx) => {
+                const isSheepHerd = pIdx % 2 === 0;
+                const herdSize = isSheepHerd ? 8 : 5;
+                for (let a = 0; a < herdSize; a++) {
+                    const animal = isSheepHerd ? createSheep() : createCow(a % 2 === 0);
+                    const ax = pz.x + (rand() - 0.5) * (pz.w * 0.65);
+                    const az = pz.z + (rand() - 0.5) * (pz.d * 0.65);
+                    const yaw = rand() * Math.PI * 2;
+                    animal.root.position.set(ax, 0.35, az);
+                    animal.root.rotation.y = yaw;
+                    lifeGroup.add(animal.root);
+                    animals.push({
+                        animal, baseX: ax, baseZ: az, yaw, phase: rand() * Math.PI * 2,
+                        wanderSpeed: 0.12 + rand() * 0.15, wanderRadius: 2.5 + rand() * 4.5
+                    });
+                }
+            });
+
+            // ==========================================
+            // 9. INVERTED BRUTALIST MEGASTRUCTURE CANOPY & 8 STEPPED PYLONS
+            // ==========================================
+            const megaGroup = new THREE.Group();
+            scene.add(megaGroup);
+
+            const canopyCeilingY = 745;
+            const macroTransforms = [];
+            const greebleTransforms = [];
+            const shaftTransforms = [];
+
+            for (let cx = -2340; cx <= 2340; cx += 130) {
+                for (let cz = -1690; cz <= 1300; cz += 130) {
+                    if (cz < -1420 && Math.abs(cx) < 1150 && rand() > 0.25) continue;
+
+                    const w = 128 + rand() * 16;
+                    const d = 128 + rand() * 16;
+                    const drop = 45 + rand() * 135;
+                    const isDark = rand() > 0.56;
+
+                    macroTransforms.push({
+                        x: cx + (rand() - 0.5) * 10,
+                        y: canopyCeilingY - drop / 2 + 65,
+                        z: cz + (rand() - 0.5) * 10,
+                        w, h: drop, d, dark: isDark
+                    });
+
+                    if (rand() < 0.72) {
+                        const subW = w * (0.48 + rand() * 0.28);
+                        const subD = d * (0.48 + rand() * 0.28);
+                        const subH = 28 + rand() * 68;
+                        macroTransforms.push({
+                            x: cx + (rand() - 0.5) * 32,
+                            y: canopyCeilingY - drop - subH / 2 + 65,
+                            z: cz + (rand() - 0.5) * 32,
+                            w: subW, h: subH, d: subD, dark: !isDark
+                        });
+                    }
+
+                    if (Math.abs(cx) < 1500 && cz > -1200 && rand() < 0.65) {
+                        greebleTransforms.push({
+                            x: cx + (rand() - 0.5) * 45,
+                            y: canopyCeilingY - drop - 8 + 65,
+                            z: cz + (rand() - 0.5) * 45,
+                            w: 16 + rand() * 34, h: 10 + rand() * 20, d: 16 + rand() * 34
+                        });
+                    }
+
+                    if (Math.abs(cx) < 1200 && cz > -1100 && cz < 800 && rand() < 0.045) {
+                        const shaftLen = 180 + rand() * 220;
+                        shaftTransforms.push({
+                            x: cx,
+                            y: canopyCeilingY - drop - shaftLen / 2 + 65,
+                            z: cz,
+                            w: 14 + rand() * 10, h: shaftLen, d: 14 + rand() * 10
+                        });
+                    }
+                }
+            }
+
+            // 8 Stepped Brutalist Mega-Pylons (6 inland + 2 offshore sea-pylons)
+            pillarZones.forEach((pz, pIdx) => {
+                const baseFloorY = pz.offshore ? seaLevelY - 4 : 0;
+                const plinthHeight = pz.offshore ? 26 : 18;
+
+                const plinth = new THREE.Mesh(
+                    new THREE.BoxGeometry(pz.r * 1.5, plinthHeight, pz.r * 1.5),
+                    mats.megaDarkMetal
+                );
+                plinth.position.set(pz.x, baseFloorY + plinthHeight / 2, pz.z);
+                plinth.castShadow = true;
+                plinth.receiveShadow = true;
+                megaGroup.add(plinth);
+
+                const startTierY = baseFloorY + plinthHeight;
+                const tiers = 11;
+                const tierH = (canopyCeilingY - startTierY) / tiers;
+                for (let t = 0; t < tiers; t++) {
+                    const yCenter = startTierY + (t + 0.5) * tierH;
+                    const waistFactor = 1.0 - Math.sin((t / (tiers - 1)) * Math.PI) * 0.34;
+                    const baseSpan = pz.r * 1.15 * waistFactor;
+
+                    for (let sb = 0; sb < 4; sb++) {
+                        const ox = ((sb % 2) - 0.5) * baseSpan * 0.52 + (rand() - 0.5) * 14;
+                        const oz = (Math.floor(sb / 2) - 0.5) * baseSpan * 0.52 + (rand() - 0.5) * 14;
+                        const bw = baseSpan * (0.58 + rand() * 0.24);
+                        const bd = baseSpan * (0.58 + rand() * 0.24);
+                        const bh = tierH * (0.96 + rand() * 0.14);
+
+                        macroTransforms.push({
+                            x: pz.x + ox, y: yCenter, z: pz.z + oz,
+                            w: bw, h: bh, d: bd, dark: (t + sb + pIdx) % 2 === 0
+                        });
+                    }
+
+                    if (t < 3) {
+                        const terraceDeck = new THREE.Mesh(
+                            new THREE.BoxGeometry(baseSpan * 1.24, 3.2, baseSpan * 1.24),
+                            mats.terraceGreen
+                        );
+                        terraceDeck.position.set(pz.x, startTierY + (t + 1) * tierH, pz.z);
+                        terraceDeck.castShadow = true;
+                        terraceDeck.receiveShadow = true;
+                        megaGroup.add(terraceDeck);
+                    }
+                }
+            });
+
+            const lightBlocks = macroTransforms.filter(b => !b.dark);
+            const darkBlocks = macroTransforms.filter(b => b.dark);
+            const unitBoxGeo = new THREE.BoxGeometry(1, 1, 1);
+
+            const lightMegaInst = new THREE.InstancedMesh(unitBoxGeo, mats.megaConcrete, lightBlocks.length);
+            lightMegaInst.castShadow = true;
+            lightMegaInst.receiveShadow = true;
+            lightBlocks.forEach((b, i) => {
+                dummy.position.set(b.x, b.y, b.z);
+                dummy.rotation.set(0, 0, 0);
+                dummy.scale.set(b.w, b.h, b.d);
+                dummy.updateMatrix();
+                lightMegaInst.setMatrixAt(i, dummy.matrix);
+            });
+            lightMegaInst.instanceMatrix.needsUpdate = true;
+            megaGroup.add(lightMegaInst);
+
+            const darkMegaInst = new THREE.InstancedMesh(unitBoxGeo, mats.megaDarkMetal, darkBlocks.length);
+            darkMegaInst.castShadow = true;
+            darkMegaInst.receiveShadow = true;
+            darkBlocks.forEach((b, i) => {
+                dummy.position.set(b.x, b.y, b.z);
+                dummy.rotation.set(0, 0, 0);
+                dummy.scale.set(b.w, b.h, b.d);
+                dummy.updateMatrix();
+                darkMegaInst.setMatrixAt(i, dummy.matrix);
+            });
+            darkMegaInst.instanceMatrix.needsUpdate = true;
+            megaGroup.add(darkMegaInst);
+
+            const allGreebles = [...greebleTransforms, ...shaftTransforms];
+            const greebleInst = new THREE.InstancedMesh(unitBoxGeo, mats.megaGreeble, allGreebles.length);
+            greebleInst.castShadow = true;
+            allGreebles.forEach((g, i) => {
+                dummy.position.set(g.x, g.y, g.z);
+                dummy.rotation.set(0, 0, 0);
+                dummy.scale.set(g.w, g.h, g.d);
+                dummy.updateMatrix();
+                greebleInst.setMatrixAt(i, dummy.matrix);
+            });
+            greebleInst.instanceMatrix.needsUpdate = true;
+            megaGroup.add(greebleInst);
+
+            // ==========================================
+            // 10. GOLDEN DUST MOTES, SOARING BIRD FLOCKS & LIGHT SHAFTS
+            // ==========================================
+            const dustCount = 2200;
+            const dustPositions = new Float32Array(dustCount * 3);
+            const dustSpeeds = new Float32Array(dustCount);
+            for (let i = 0; i < dustCount; i++) {
+                dustPositions[i * 3] = (rand() - 0.5) * 1900;
+                dustPositions[i * 3 + 1] = 2 + rand() * 340;
+                dustPositions[i * 3 + 2] = -950 + rand() * 1770;
+                dustSpeeds[i] = 0.4 + rand() * 1.1;
+            }
+            const dustGeo = new THREE.BufferGeometry();
+            dustGeo.setAttribute('position', new THREE.BufferAttribute(dustPositions, 3));
+            const dustPoints = new THREE.Points(dustGeo, new THREE.PointsMaterial({
+                color: '#ffe4a3', size: 2.2, transparent: true, opacity: 0.65, blending: THREE.AdditiveBlending, depthWrite: false
+            }));
+            scene.add(dustPoints);
+
+            const birdCount = 84;
+            const birdWingGeo = new THREE.ConeGeometry(0.65, 2.2, 3);
+            birdWingGeo.rotateZ(Math.PI / 2);
+            const birdInstanced = new THREE.InstancedMesh(birdWingGeo, new THREE.MeshBasicMaterial({ color: '#2b241d', side: THREE.DoubleSide }), birdCount);
+            scene.add(birdInstanced);
+
+            const birdData = [];
+            const flockCenters = [
+                { x: -60, y: 68, z: 260 }, { x: 140, y: 95, z: -80 }, { x: -240, y: 140, z: -260 },
+                { x: 260, y: 115, z: 180 }, { x: 0, y: 185, z: -520 }, { x: 120, y: 65, z: 2520 }
+            ];
+            for (let i = 0; i < birdCount; i++) {
+                const fc = flockCenters[Math.floor(i / 14) % flockCenters.length];
+                birdData.push({
+                    cx: fc.x + (rand() - 0.5) * 45, cy: fc.y + (rand() - 0.5) * 18, cz: fc.z + (rand() - 0.5) * 45,
+                    radius: 28 + rand() * 65, angle: rand() * Math.PI * 2,
+                    speed: (0.14 + rand() * 0.14) * (i % 2 === 0 ? 1 : -1), scale: 0.8 + rand() * 0.55
+                });
+            }
+
+            const lightShaftsGroup = new THREE.Group();
+            scene.add(lightShaftsGroup);
+            const shaftMat = new THREE.MeshBasicMaterial({
+                color: '#ffdf9e', transparent: true, opacity: 0.055, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide
+            });
+            [
+                { x: -480, z: -980, w: 260, rotY: 0.25 },
+                { x: -60, z: -1120, w: 340, rotY: -0.15 },
+                { x: 420, z: -1040, w: 280, rotY: 0.35 },
+                { x: 120, z: -640, w: 220, rotY: -0.22 }
+            ].forEach(sh => {
+                const beam = new THREE.Mesh(new THREE.PlaneGeometry(sh.w, 1250), shaftMat);
+                beam.position.set(sh.x, 360, sh.z);
+                beam.rotation.set(0.58, sh.rotY, 0.14);
+                lightShaftsGroup.add(beam);
+            });
+
+            // ==========================================
+            // 11. 3D SCALE BEACONS
+            // ==========================================
+            const markersLayer = document.getElementById('markers-layer');
+            const scaleBeacons = [
+                {
+                    label: '01 • Villager (1.8m)',
+                    tag: '1 : 640 Scale Reference',
+                    title: '1.8m Villagers & Grazing Herds',
+                    desc: 'Miniature villagers tend wheat plots and stroll across timber canal footbridges beside herds of woolly sheep and spotted cattle.',
+                    metrics: [{ lbl: 'Height', val: '1.8 m' }, { lbl: 'Population', val: '72 Villagers' }, { lbl: 'Herds', val: '18 Pastures' }],
+                    pos: new THREE.Vector3(-24, 6, 345),
+                    preset: 'farmhouse'
+                },
+                {
+                    label: '02 • Farmhouse (8.2m)',
+                    tag: 'Agrarian Island Compound',
+                    title: '8.2m Terracotta Cottages & Grain Silos',
+                    desc: 'Fifteen multi-building farm compounds with pitched terracotta roofs, brick chimneys, timber barns, and twin corrugated steel silos.',
+                    metrics: [{ lbl: 'Roof Peak', val: '8.2 m' }, { lbl: 'Compounds', val: '15 Farms' }, { lbl: 'Island Span', val: '5,400 m' }],
+                    pos: new THREE.Vector3(-38, 16, 365),
+                    preset: 'farmhouse'
+                },
+                {
+                    label: '03 • Canopy (1,150m)',
+                    tag: 'Inverted Brutalist Megastructure',
+                    title: '1,150m Suspended Modular Sky-Grid',
+                    desc: 'A colossal concrete and alloy habitation canopy suspended high above the island valley, casting monumental shadows across the fields.',
+                    metrics: [{ lbl: 'Altitude', val: '1,150 m' }, { lbl: 'Grid Span', val: '4,800 m' }, { lbl: 'Inland Pylons', val: '6 Towers' }],
+                    pos: new THREE.Vector3(-40, 620, -320),
+                    preset: 'canopy'
+                },
+                {
+                    label: '04 • Sea Pylon (1,220m)',
+                    tag: 'Offshore Marine Anchor',
+                    title: '1,220m Offshore Sea-Pylon & Harbor',
+                    desc: 'Massive brutalist support columns rise directly out of the 48km surrounding ocean beyond wooden harbor jetties and bobbing fishing boats.',
+                    metrics: [{ lbl: 'Total Height', val: '1,220 m' }, { lbl: 'Ocean Span', val: '48 × 48 km' }, { lbl: 'Sea Level', val: '-14.0 m' }],
+                    pos: new THREE.Vector3(120, 48, 2700),
+                    preset: 'sea'
+                }
+            ];
+
+            const markerElements = [];
+            scaleBeacons.forEach(item => {
+                const el = document.createElement('button');
+                el.className = 'scale-pin mono';
+                el.textContent = item.label;
+                el.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const loreCard = document.getElementById('lore-card');
+                    loreCard.classList.remove('hidden-card');
+                    document.getElementById('lore-tag').textContent = item.tag;
+                    document.getElementById('lore-title').textContent = item.title;
+                    document.getElementById('lore-desc').textContent = item.desc;
+                    document.getElementById('lore-metrics').innerHTML = item.metrics.map(m =>
+                        `<div><div class="metric-lbl">${m.lbl}</div><div class="metric-val mono">${m.val}</div></div>`
+                    ).join('');
+                    if (item.preset) flyToPreset(item.preset);
+                });
+                markersLayer.appendChild(el);
+                markerElements.push({ el, data: item });
+            });
+
+            // ==========================================
+            // 12. 3-MODE NAVIGATION & GENTLE NORMALIZED SCROLL
+            // ==========================================
+            const cameraPresets = {
+                overview:  { pos: new THREE.Vector3(45, 145, 650), target: new THREE.Vector3(-15, 160, -420) },
+                farmhouse: { pos: new THREE.Vector3(-6, 22, 425), target: new THREE.Vector3(-42, 32, 260) },
+                pillar:    { pos: new THREE.Vector3(-95, 68, -60), target: new THREE.Vector3(-290, 220, -340) },
+                canopy:    { pos: new THREE.Vector3(145, 540, 320), target: new THREE.Vector3(-45, 620, -420) },
+                sea:       { pos: new THREE.Vector3(245, 64, 2920), target: new THREE.Vector3(60, 12, 2660) },
+                aerial:    { pos: new THREE.Vector3(1550, 860, 3850), target: new THREE.Vector3(0, 140, -150) }
+            };
+
+            let isFlying = false;
+            const targetPos = new THREE.Vector3();
+            const targetLook = new THREE.Vector3();
+
+            function flyToPreset(key) {
+                const p = cameraPresets[key];
+                if (!p) return;
+                if (navMode !== 'orbit') setNavMode('orbit');
+                targetPos.copy(p.pos);
+                targetLook.copy(p.target);
+                isFlying = true;
+                document.querySelectorAll('.preset-btn').forEach(btn => {
+                    btn.classList.toggle('active', btn.dataset.preset === key);
+                });
+            }
+
+            document.querySelectorAll('.preset-btn').forEach(btn => {
+                btn.addEventListener('click', () => flyToPreset(btn.dataset.preset));
+            });
+
+            // 3rd-Person Explorer Character
+            const playerRig = createArticulatedHuman(0, true);
+            playerRig.root.visible = false;
+            scene.add(playerRig.root);
+
+            const walkDestinations = [
+                { name: 'Village Square & Sheep Pasture', pos: new THREE.Vector3(-24, 0.35, 345), yaw: 0.4 },
+                { name: 'Wheat Lane & Cattle Meadow', pos: new THREE.Vector3(64, 0.35, 315), yaw: -0.5 },
+                { name: 'Canal Bridge Crossing', pos: new THREE.Vector3(-25, 0.35, 252), yaw: 0.0 },
+                { name: 'Mega-Pylon Base & Terraces', pos: new THREE.Vector3(-205, 0.35, 295), yaw: 0.85 },
+                { name: 'Coastal Pier & Harbor Overlook', pos: new THREE.Vector3(120, 0.55, 2692), yaw: Math.PI }
+            ];
+            let walkDestIndex = 0;
+
+            const walkState = {
+                pos: walkDestinations[0].pos.clone(),
+                vel: new THREE.Vector3(),
+                velY: 0,
+                grounded: true,
+                yaw: walkDestinations[0].yaw,
+                camYaw: walkDestinations[0].yaw,
+                camPitch: 0.28,
+                currentCamDist: 9.5,
+                targetCamDist: 9.5,
+                walkCycle: 0,
+                keys: { forward: false, backward: false, left: false, right: false, sprint: false },
+                isDragging: false,
+                lastPtr: { x: 0, y: 0 }
+            };
+
+            function lerpAngle(a, b, t) {
+                let diff = b - a;
+                while (diff < -Math.PI) diff += Math.PI * 2;
+                while (diff > Math.PI) diff -= Math.PI * 2;
+                return a + diff * t;
+            }
+
+            function getGroundElevationAt(x, z) {
+                if ((Math.abs(x - (-25)) < 3.4 || Math.abs(x - 85) < 3.4) && Math.abs(z - 240) < 6.0) return 0.65;
+                if (Math.abs(x - (-40)) < 3.4 && Math.abs(z - (-380)) < 6.0) return 0.65;
+                if ((Math.abs(x - (-160)) < 6.0 && Math.abs(z - 140) < 3.4) || (Math.abs(x - 290) < 6.0 && Math.abs(z - 210) < 3.4)) return 0.65;
+                return 0.35;
+            }
+
+            function teleportLandmark() {
+                walkDestIndex = (walkDestIndex + 1) % walkDestinations.length;
+                const dest = walkDestinations[walkDestIndex];
+                walkState.pos.copy(dest.pos);
+                walkState.vel.set(0, 0, 0);
+                walkState.velY = 0;
+                walkState.grounded = true;
+                walkState.yaw = dest.yaw;
+                walkState.camYaw = dest.yaw;
+                document.getElementById('walk-loc-label').textContent = dest.name;
+            }
+
+            let navMode = 'orbit'; // 'orbit' | 'walk' | 'drone'
+            const orbitKeys = { forward: false, backward: false, left: false, right: false, sprint: false };
+            const droneState = {
+                pos: new THREE.Vector3(45, 145, 650),
+                vel: new THREE.Vector3(),
+                yaw: 0.05,
+                pitch: -0.02,
+                speedMult: 1.0,
+                keys: { forward: false, backward: false, left: false, right: false, up: false, down: false, sprint: false },
+                isDragging: false,
+                lastPtr: { x: 0, y: 0 }
+            };
+
+            function updateFlySpeedHUD() {
+                const badge = document.getElementById('fly-speed-badge');
+                if (badge) badge.textContent = `Speed ${droneState.speedMult.toFixed(1)}x`;
+            }
+
+            function setNavMode(mode) {
+                navMode = mode;
+                isFlying = false;
+
+                document.getElementById('btn-mode-orbit').classList.toggle('active', mode === 'orbit');
+                document.getElementById('btn-mode-walk').classList.toggle('active', mode === 'walk');
+                document.getElementById('btn-mode-drone').classList.toggle('active', mode === 'drone');
+
+                playerRig.root.visible = (mode === 'walk');
+                document.getElementById('walk-hud').classList.toggle('visible', mode === 'walk');
+                document.getElementById('drone-hud').classList.toggle('visible', mode === 'drone');
+
+                const showPad = (mode === 'walk' || mode === 'drone');
+                document.getElementById('touch-pad-dock').classList.toggle('visible', showPad);
+                document.getElementById('lore-card').classList.toggle('hidden-card', showPad);
+
+                const padUp = document.getElementById('pad-up');
+                const padDown = document.getElementById('pad-down');
+                if (mode === 'walk') {
+                    padUp.textContent = 'JUMP'; padUp.dataset.dir = 'jump';
+                    padDown.textContent = 'JOG'; padDown.dataset.dir = 'sprint';
+                } else if (mode === 'drone') {
+                    padUp.textContent = 'ALT +'; padUp.dataset.dir = 'up';
+                    padDown.textContent = 'ALT -'; padDown.dataset.dir = 'down';
+                }
+
+                if (mode === 'orbit') {
+                    controls.enabled = true;
+                    const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+                    controls.target.copy(camera.position).addScaledVector(forward, 180);
+                    controls.target.y = Math.max(4, controls.target.y);
+                } else if (mode === 'walk') {
+                    controls.enabled = false;
+                    controls.autoRotate = false;
+                    if (camera.position.y < 95 && Math.abs(camera.position.x) < islandHalf - 20 && Math.abs(camera.position.z) < islandHalf - 20) {
+                        walkState.pos.set(camera.position.x, getGroundElevationAt(camera.position.x, camera.position.z), camera.position.z);
+                        const euler = new THREE.Euler().setFromQuaternion(camera.quaternion, 'YXZ');
+                        walkState.yaw = euler.y;
+                        walkState.camYaw = euler.y;
+                    } else {
+                        const dest = walkDestinations[walkDestIndex];
+                        walkState.pos.copy(dest.pos);
+                        walkState.yaw = dest.yaw;
+                        walkState.camYaw = dest.yaw;
+                    }
+                    walkState.vel.set(0, 0, 0);
+                    walkState.velY = 0;
+                    walkState.grounded = true;
+                    walkState.currentCamDist = walkState.targetCamDist;
+                    playerRig.root.position.copy(walkState.pos);
+                } else if (mode === 'drone') {
+                    controls.enabled = false;
+                    controls.autoRotate = false;
+                    droneState.pos.copy(camera.position);
+                    droneState.vel.set(0, 0, 0);
+                    if (droneState.pos.y < 14) droneState.pos.y = 28;
+                    const euler = new THREE.Euler().setFromQuaternion(camera.quaternion, 'YXZ');
+                    droneState.yaw = euler.y;
+                    droneState.pitch = THREE.MathUtils.clamp(euler.x, THREE.MathUtils.degToRad(-85), THREE.MathUtils.degToRad(85));
+                    updateFlySpeedHUD();
+                }
+            }
+
+            function triggerWalkJump() {
+                if (walkState.grounded) {
+                    walkState.velY = 9.8;
+                    walkState.grounded = false;
+                }
+            }
+
+            window.addEventListener('keydown', (e) => {
+                if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) {
+                    e.preventDefault();
+                }
+                if (navMode === 'orbit') {
+                    if (e.code === 'KeyW' || e.code === 'ArrowUp') orbitKeys.forward = true;
+                    if (e.code === 'KeyS' || e.code === 'ArrowDown') orbitKeys.backward = true;
+                    if (e.code === 'KeyA' || e.code === 'ArrowLeft') orbitKeys.left = true;
+                    if (e.code === 'KeyD' || e.code === 'ArrowRight') orbitKeys.right = true;
+                    if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') orbitKeys.sprint = true;
+                } else if (navMode === 'walk') {
+                    if (e.code === 'KeyW' || e.code === 'ArrowUp') walkState.keys.forward = true;
+                    if (e.code === 'KeyS' || e.code === 'ArrowDown') walkState.keys.backward = true;
+                    if (e.code === 'KeyA' || e.code === 'ArrowLeft') walkState.keys.left = true;
+                    if (e.code === 'KeyD' || e.code === 'ArrowRight') walkState.keys.right = true;
+                    if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') walkState.keys.sprint = true;
+                    if (e.code === 'Space') triggerWalkJump();
+                } else if (navMode === 'drone') {
+                    if (e.code === 'KeyW' || e.code === 'ArrowUp') droneState.keys.forward = true;
+                    if (e.code === 'KeyS' || e.code === 'ArrowDown') droneState.keys.backward = true;
+                    if (e.code === 'KeyA' || e.code === 'ArrowLeft') droneState.keys.left = true;
+                    if (e.code === 'KeyD' || e.code === 'ArrowRight') droneState.keys.right = true;
+                    if (e.code === 'KeyE' || e.code === 'Space') droneState.keys.up = true;
+                    if (e.code === 'KeyQ' || e.code === 'KeyC') droneState.keys.down = true;
+                    if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') droneState.keys.sprint = true;
+                }
+            });
+
+            window.addEventListener('keyup', (e) => {
+                if (e.code === 'KeyW' || e.code === 'ArrowUp') { orbitKeys.forward = walkState.keys.forward = droneState.keys.forward = false; }
+                if (e.code === 'KeyS' || e.code === 'ArrowDown') { orbitKeys.backward = walkState.keys.backward = droneState.keys.backward = false; }
+                if (e.code === 'KeyA' || e.code === 'ArrowLeft') { orbitKeys.left = walkState.keys.left = droneState.keys.left = false; }
+                if (e.code === 'KeyD' || e.code === 'ArrowRight') { orbitKeys.right = walkState.keys.right = droneState.keys.right = false; }
+                if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') { orbitKeys.sprint = walkState.keys.sprint = droneState.keys.sprint = false; }
+                if (e.code === 'KeyE' || e.code === 'Space') droneState.keys.up = false;
+                if (e.code === 'KeyQ' || e.code === 'KeyC') droneState.keys.down = false;
+            });
+
+            renderer.domElement.addEventListener('pointerdown', (e) => {
+                if (navMode === 'drone') { droneState.isDragging = true; droneState.lastPtr = { x: e.clientX, y: e.clientY }; }
+                else if (navMode === 'walk') { walkState.isDragging = true; walkState.lastPtr = { x: e.clientX, y: e.clientY }; }
+            });
+            window.addEventListener('pointermove', (e) => {
+                if (navMode === 'drone' && droneState.isDragging) {
+                    const dx = e.clientX - droneState.lastPtr.x;
+                    const dy = e.clientY - droneState.lastPtr.y;
+                    droneState.lastPtr = { x: e.clientX, y: e.clientY };
+                    droneState.yaw -= dx * 0.0036;
+                    const maxP = THREE.MathUtils.degToRad(85);
+                    droneState.pitch = THREE.MathUtils.clamp(droneState.pitch - dy * 0.0036, -maxP, maxP);
+                } else if (navMode === 'walk' && walkState.isDragging) {
+                    const dx = e.clientX - walkState.lastPtr.x;
+                    const dy = e.clientY - walkState.lastPtr.y;
+                    walkState.lastPtr = { x: e.clientX, y: e.clientY };
+                    walkState.camYaw -= dx * 0.0052;
+                    walkState.camPitch = THREE.MathUtils.clamp(walkState.camPitch + dy * 0.0042, THREE.MathUtils.degToRad(5), THREE.MathUtils.degToRad(72));
+                }
+            });
+            window.addEventListener('pointerup', () => { droneState.isDragging = false; walkState.isDragging = false; });
+
+            // Normalized, Gentle Scroll Wheel across All 3 Modes
+            renderer.domElement.addEventListener('wheel', (e) => {
+                const delta = Math.max(-100, Math.min(100, e.deltaY));
+                if (navMode === 'walk') {
+                    walkState.targetCamDist = THREE.MathUtils.clamp(walkState.targetCamDist + delta * 0.015, 5, 38);
+                } else if (navMode === 'drone') {
+                    droneState.speedMult = THREE.MathUtils.clamp(droneState.speedMult - delta * 0.0025, 0.4, 3.0);
+                    updateFlySpeedHUD();
+                }
+            }, { passive: true });
+
+            // Virtual D-Pad Bindings
+            document.querySelectorAll('.nav-pad').forEach(btn => {
+                const setActive = (active) => {
+                    const dir = btn.dataset.dir;
+                    btn.classList.toggle('pressed', active);
+                    if (navMode === 'walk') {
+                        if (dir === 'jump') { if (active) triggerWalkJump(); }
+                        else walkState.keys[dir] = active;
+                    } else if (navMode === 'drone') {
+                        droneState.keys[dir] = active;
+                    }
+                };
+                btn.addEventListener('pointerdown', (e) => { e.preventDefault(); setActive(true); });
+                btn.addEventListener('pointerup', () => setActive(false));
+                btn.addEventListener('pointerleave', () => setActive(false));
+                btn.addEventListener('pointercancel', () => setActive(false));
+            });
+
+            document.getElementById('btn-mode-orbit').addEventListener('click', () => setNavMode('orbit'));
+            document.getElementById('btn-mode-walk').addEventListener('click', () => setNavMode('walk'));
+            document.getElementById('btn-mode-drone').addEventListener('click', () => setNavMode('drone'));
+            document.getElementById('btn-exit-walk').addEventListener('click', () => setNavMode('orbit'));
+            document.getElementById('btn-exit-drone').addEventListener('click', () => setNavMode('orbit'));
+            document.getElementById('btn-teleport').addEventListener('click', teleportLandmark);
+
+            // ==========================================
+            // 13. SLIDERS & TOGGLES
+            // ==========================================
+            document.getElementById('slider-sun-elev').addEventListener('input', (e) => {
+                sunElevDeg = parseFloat(e.target.value);
+                document.getElementById('val-sun-elev').textContent = `${sunElevDeg}°`;
+                updateSunPosition();
+            });
+            document.getElementById('slider-sun-azim').addEventListener('input', (e) => {
+                sunAzimDeg = parseFloat(e.target.value);
+                document.getElementById('val-sun-azim').textContent = `${sunAzimDeg}°`;
+                updateSunPosition();
+            });
+            document.getElementById('chk-markers').addEventListener('change', (e) => {
+                markersLayer.style.display = e.target.checked ? 'block' : 'none';
+            });
+            document.getElementById('chk-canopy').addEventListener('change', (e) => {
+                megaGroup.visible = e.target.checked;
+            });
+            document.getElementById('chk-ocean').addEventListener('change', (e) => {
+                oceanMesh.visible = e.target.checked;
+                coastalGroup.visible = e.target.checked;
+            });
+            document.getElementById('chk-shafts').addEventListener('change', (e) => {
+                lightShaftsGroup.visible = e.target.checked;
+            });
+            document.getElementById('btn-autorotate').addEventListener('click', (e) => {
+                if (navMode !== 'orbit') setNavMode('orbit');
+                controls.autoRotate = !controls.autoRotate;
+                controls.autoRotateSpeed = 0.45;
+                e.currentTarget.classList.toggle('active', controls.autoRotate);
+            });
+            document.getElementById('btn-toggle-hud').addEventListener('click', () => {
+                document.getElementById('control-panel').classList.toggle('collapsed');
+            });
+            document.getElementById('btn-close-lore').addEventListener('click', () => {
+                document.getElementById('lore-card').classList.add('hidden-card');
+            });
+            controls.addEventListener('start', () => { isFlying = false; });
+
+            // ==========================================
+            // 14. ANIMATION LOOP & IMMEDIATE FIRST-FRAME START
+            // ==========================================
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+
+            const clock = new THREE.Clock();
+            let firstFrameRendered = false;
+
+            function animate() {
+                requestAnimationFrame(animate);
+                const dt = Math.min(clock.getDelta(), 0.05);
+                const elapsed = clock.getElapsedTime();
+
+                wheatUniforms.uTime.value = elapsed;
+                if (oceanUniforms) oceanUniforms.uTime.value = elapsed;
+                lighthouseBeamPivot.rotation.y = elapsed * 0.55;
+
+                // Bobbing harbor boats
+                for (let i = 0; i < mooredBoats.length; i++) {
+                    const b = mooredBoats[i];
+                    b.mesh.position.y = seaLevelY + 0.35 + Math.sin(elapsed * 1.45 + b.phase) * 0.42;
+                    b.mesh.rotation.z = Math.sin(elapsed * 1.15 + b.phase) * 0.045;
+                    b.mesh.rotation.x = Math.cos(elapsed * 0.95 + b.phase) * 0.03;
+                }
+
+                // Animate villagers & livestock
+                for (let i = 0; i < villagers.length; i++) {
+                    const v = villagers[i];
+                    if (v.isWalker) {
+                        const t = elapsed * v.speed + v.phase;
+                        const nx = v.cx + Math.cos(t) * v.radius;
+                        const nz = v.cz + Math.sin(t) * v.radius;
+                        v.rig.root.rotation.y = Math.atan2(nx - v.rig.root.position.x, nz - v.rig.root.position.z);
+                        v.rig.root.position.set(nx, 0.35, nz);
+                        const swing = Math.sin(elapsed * 5.2 + v.phase) * 0.52;
+                        v.rig.leftLeg.rotation.x = swing;
+                        v.rig.rightLeg.rotation.x = -swing;
+                        v.rig.leftArm.rotation.x = -swing * 0.75;
+                        v.rig.rightArm.rotation.x = swing * 0.75;
+                    } else {
+                        const bend = Math.max(0, Math.sin(elapsed * 1.4 + v.phase)) * 0.48;
+                        v.rig.torso.rotation.x = bend;
+                        v.rig.leftArm.rotation.x = -bend * 1.3;
+                        v.rig.rightArm.rotation.x = -bend * 1.3 + Math.sin(elapsed * 4.5 + v.phase) * 0.25;
+                    }
+                }
+
+                for (let i = 0; i < animals.length; i++) {
+                    const item = animals[i];
+                    const t = elapsed * item.wanderSpeed + item.phase;
+                    const nx = item.baseX + Math.sin(t) * item.wanderRadius;
+                    const nz = item.baseZ + Math.cos(t * 0.7) * item.wanderRadius;
+                    const dx = nx - item.animal.root.position.x;
+                    const dz = nz - item.animal.root.position.z;
+                    if (dx * dx + dz * dz > 0.00001) {
+                        item.animal.root.rotation.y = Math.atan2(dx, dz);
+                    }
+                    item.animal.root.position.set(nx, 0.35, nz);
+                    const grazeWave = Math.sin(elapsed * 1.6 + item.phase * 2.0);
+                    item.animal.neckPivot.rotation.x = grazeWave > 0 ? 0.42 + Math.sin(elapsed * 5.0 + item.phase) * 0.12 : 0.05;
+                }
+
+                // Dust motes & soaring bird flocks
+                const posAttr = dustGeo.attributes.position;
+                for (let i = 0; i < dustCount; i++) {
+                    const idx = i * 3;
+                    posAttr.array[idx] += Math.sin(elapsed * 0.4 + i) * 0.12;
+                    posAttr.array[idx + 1] += Math.cos(elapsed * 0.3 + i * 0.5) * 0.06;
+                    posAttr.array[idx + 2] += dustSpeeds[i] * 0.25;
+                    if (posAttr.array[idx + 2] > 820) posAttr.array[idx + 2] = -950;
+                }
+                posAttr.needsUpdate = true;
+
+                birdData.forEach((b, i) => {
+                    const a = b.angle + elapsed * b.speed;
+                    const bx = b.cx + Math.cos(a) * b.radius;
+                    const bz = b.cz + Math.sin(a) * b.radius;
+                    const by = b.cy + Math.sin(elapsed * 0.8 + i) * 3.5;
+                    dummy.position.set(bx, by, bz);
+                    dummy.rotation.set(0, -a, 0.22);
+                    const wingFlap = 0.75 + Math.abs(Math.sin(elapsed * 5.5 + i * 1.7)) * 0.45;
+                    dummy.scale.set(b.scale * 1.8, b.scale * wingFlap, b.scale * 1.8);
+                    dummy.updateMatrix();
+                    birdInstanced.setMatrixAt(i, dummy.matrix);
+                });
+                birdInstanced.instanceMatrix.needsUpdate = true;
+
+                // Camera Mode Updates
+                if (navMode === 'orbit') {
+                    if (isFlying) {
+                        camera.position.lerp(targetPos, Math.min(1, dt * 3.0));
+                        controls.target.lerp(targetLook, Math.min(1, dt * 3.0));
+                        if (camera.position.distanceTo(targetPos) < 1.2) isFlying = false;
+                    }
+
+                    const panZ = (orbitKeys.forward ? 1 : 0) - (orbitKeys.backward ? 1 : 0);
+                    const panX = (orbitKeys.right ? 1 : 0) - (orbitKeys.left ? 1 : 0);
+                    if (panX !== 0 || panZ !== 0) {
+                        isFlying = false;
+                        const camFwd = new THREE.Vector3();
+                        camera.getWorldDirection(camFwd);
+                        camFwd.y = 0;
+                        if (camFwd.lengthSq() > 0.0001) camFwd.normalize();
+                        const camRight = new THREE.Vector3().crossVectors(camFwd, new THREE.Vector3(0, 1, 0)).normalize();
+                        const distScale = THREE.MathUtils.clamp(camera.position.distanceTo(controls.target) * 0.45, 35, 340);
+                        const panSpeed = distScale * (orbitKeys.sprint ? 2.2 : 1.0) * dt;
+                        const panDelta = new THREE.Vector3()
+                            .addScaledVector(camFwd, panZ * panSpeed)
+                            .addScaledVector(camRight, panX * panSpeed);
+                        controls.target.add(panDelta);
+                        camera.position.add(panDelta);
+                    }
+
+                    controls.target.x = THREE.MathUtils.clamp(controls.target.x, -2800, 2800);
+                    controls.target.y = THREE.MathUtils.clamp(controls.target.y, -10, 720);
+                    controls.target.z = THREE.MathUtils.clamp(controls.target.z, -2800, 2800);
+                    controls.update();
+                    if (camera.position.y < seaLevelY + 3.5) camera.position.y = seaLevelY + 3.5;
+
+                } else if (navMode === 'walk') {
+                    const forward = new THREE.Vector3(-Math.sin(walkState.camYaw), 0, -Math.cos(walkState.camYaw));
+                    const right = new THREE.Vector3(Math.cos(walkState.camYaw), 0, -Math.sin(walkState.camYaw));
+                    const inputDir = new THREE.Vector3();
+                    if (walkState.keys.forward) inputDir.add(forward);
+                    if (walkState.keys.backward) inputDir.sub(forward);
+                    if (walkState.keys.right) inputDir.add(right);
+                    if (walkState.keys.left) inputDir.sub(right);
+
+                    const maxWalkSpeed = walkState.keys.sprint ? 16.5 : 8.0;
+                    const desiredVel = new THREE.Vector3();
+                    if (inputDir.lengthSq() > 0.001) {
+                        inputDir.normalize();
+                        desiredVel.copy(inputDir).multiplyScalar(maxWalkSpeed);
+                    }
+
+                    walkState.vel.lerp(desiredVel, 1 - Math.exp(-11.0 * dt));
+                    walkState.pos.addScaledVector(walkState.vel, dt);
+
+                    const horizSpeed = Math.hypot(walkState.vel.x, walkState.vel.z);
+                    if (horizSpeed > 0.25) {
+                        walkState.yaw = lerpAngle(walkState.yaw, Math.atan2(walkState.vel.x, walkState.vel.z), 1 - Math.exp(-12 * dt));
+                        walkState.walkCycle += dt * (horizSpeed * 1.15);
+                        const amp = THREE.MathUtils.clamp(horizSpeed / 12.0, 0.2, 0.85);
+                        const swing = Math.sin(walkState.walkCycle) * amp;
+                        playerRig.leftLeg.rotation.x = swing;
+                        playerRig.rightLeg.rotation.x = -swing;
+                        playerRig.leftArm.rotation.x = -swing * 0.85;
+                        playerRig.rightArm.rotation.x = swing * 0.85;
+                        playerRig.torso.position.y = 1.02 + Math.abs(Math.cos(walkState.walkCycle)) * 0.055 * amp;
+                        playerRig.torso.rotation.x = walkState.keys.sprint ? 0.16 : 0.06;
+                    } else {
+                        const settle = Math.exp(-10 * dt);
+                        playerRig.leftLeg.rotation.x *= settle;
+                        playerRig.rightLeg.rotation.x *= settle;
+                        playerRig.leftArm.rotation.x *= settle;
+                        playerRig.rightArm.rotation.x *= settle;
+                        playerRig.torso.position.y = 1.02 + Math.sin(elapsed * 2.4) * 0.015;
+                        playerRig.torso.rotation.x *= settle;
+                    }
+
+                    const groundY = getGroundElevationAt(walkState.pos.x, walkState.pos.z);
+                    walkState.velY -= 26.0 * dt;
+                    walkState.pos.y += walkState.velY * dt;
+                    if (walkState.pos.y <= groundY) {
+                        walkState.pos.y = groundY;
+                        walkState.velY = 0;
+                        walkState.grounded = true;
+                    }
+
+                    walkState.pos.x = THREE.MathUtils.clamp(walkState.pos.x, -islandHalf + 5, islandHalf - 5);
+                    walkState.pos.z = THREE.MathUtils.clamp(walkState.pos.z, -islandHalf + 5, islandHalf - 5);
+
+                    playerRig.root.position.copy(walkState.pos);
+                    playerRig.root.rotation.y = walkState.yaw;
+
+                    walkState.currentCamDist = THREE.MathUtils.lerp(walkState.currentCamDist, walkState.targetCamDist, 1 - Math.exp(-10 * dt));
+                    const focusPt = new THREE.Vector3(walkState.pos.x, walkState.pos.y + 1.55, walkState.pos.z);
+                    const horizDist = Math.cos(walkState.camPitch) * walkState.currentCamDist;
+                    const vertOffset = Math.sin(walkState.camPitch) * walkState.currentCamDist;
+                    const desiredCamPos = new THREE.Vector3(
+                        focusPt.x + Math.sin(walkState.camYaw) * horizDist,
+                        Math.max(groundY + 1.1, focusPt.y + vertOffset),
+                        focusPt.z + Math.cos(walkState.camYaw) * horizDist
+                    );
+                    camera.position.lerp(desiredCamPos, 1 - Math.exp(-12 * dt));
+                    camera.lookAt(focusPt);
+
+                } else if (navMode === 'drone') {
+                    const baseCruise = 145 * droneState.speedMult * (droneState.keys.sprint ? 2.6 : 1.0);
+                    const forward = new THREE.Vector3(0, 0, -1).applyEuler(new THREE.Euler(droneState.pitch, droneState.yaw, 0, 'YXZ'));
+                    const right = new THREE.Vector3(1, 0, 0).applyAxisAngle(new THREE.Vector3(0, 1, 0), droneState.yaw);
+
+                    const thrust = new THREE.Vector3();
+                    if (droneState.keys.forward) thrust.add(forward);
+                    if (droneState.keys.backward) thrust.sub(forward);
+                    if (droneState.keys.right) thrust.add(right);
+                    if (droneState.keys.left) thrust.sub(right);
+                    if (droneState.keys.up) thrust.y += 1.0;
+                    if (droneState.keys.down) thrust.y -= 1.0;
+
+                    if (thrust.lengthSq() > 0.001) thrust.normalize().multiplyScalar(baseCruise);
+
+                    droneState.vel.lerp(thrust, 1 - Math.exp(-6.5 * dt));
+                    droneState.pos.addScaledVector(droneState.vel, dt);
+
+                    const overIsland = Math.abs(droneState.pos.x) < islandHalf + 20 && Math.abs(droneState.pos.z) < islandHalf + 20;
+                    const minAltitude = overIsland ? 2.0 : -11.0;
+
+                    droneState.pos.x = THREE.MathUtils.clamp(droneState.pos.x, -4500, 4500);
+                    droneState.pos.y = THREE.MathUtils.clamp(droneState.pos.y, minAltitude, 980);
+                    droneState.pos.z = THREE.MathUtils.clamp(droneState.pos.z, -4500, 4500);
+
+                    camera.position.copy(droneState.pos);
+                    camera.quaternion.setFromEuler(new THREE.Euler(droneState.pitch, droneState.yaw, 0, 'YXZ'));
+                }
+
+                // Project 3D Scale Beacons
+                if (markersLayer.style.display !== 'none') {
+                    const proj = new THREE.Vector3();
+                    markerElements.forEach(m => {
+                        proj.copy(m.data.pos).project(camera);
+                        const behind = proj.z > 1;
+                        const sx = (proj.x * 0.5 + 0.5) * window.innerWidth;
+                        const sy = (-proj.y * 0.5 + 0.5) * window.innerHeight;
+                        if (behind || sx < 24 || sx > window.innerWidth - 24 || sy < 24 || sy > window.innerHeight - 24) {
+                            m.el.style.opacity = '0';
+                            m.el.style.pointerEvents = 'none';
+                        } else {
+                            m.el.style.opacity = '1';
+                            m.el.style.pointerEvents = 'auto';
+                            m.el.style.left = `${sx}px`;
+                            m.el.style.top = `${sy}px`;
+                        }
+                    });
+                }
+
+                renderer.render(scene, camera);
+
+                if (!firstFrameRendered) {
+                    firstFrameRendered = true;
+                    hideLoader();
+                }
+            }
+
+            animate();
+        } catch (err) {
+            console.error(err);
+            window.__showBootError(err && err.message ? err.message : String(err));
+        }
+    </script>
+</body>
+</html>
